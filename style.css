@@ -1,0 +1,36 @@
+th, td { border: 1px solid;}
+td {text-align: center;}
+table {
+    border-collapse: collapse;
+    margin-top: 60px;
+    display: inline-block;
+    }
+button{
+    display:inline;
+    color: black;
+    background-color: white;
+}
+button.selected {
+    display: inline;
+    color: white;
+    background-color: black;
+}
+caption {
+    font-weight: bold;
+    padding: 0.5em 0em;
+}
+
+
+.flex-align-start {
+    display: flex;
+    align-content: flex-start;
+    flex-wrap: wrap;
+}
+.flex-col-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.selectable:not(.selected) {
+    display: none;
+}
