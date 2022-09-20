@@ -15,12 +15,23 @@ def main():
     parser.add_option("-e", "--error",
                   action="store_true", dest="error", default=False,
                   help="print execution durations to stderr")
+    parser.add_option("-T", "--test",
+                  action="store", type="int", dest="test", default=0,
+                  help="test geolocation, specify number of repetitions")
+
 
     options, _ = parser.parse_args()
     
     stats = Log_stats(err_mess=options.error)
     stats.make_stats(sys.stdin)
-    stats.print_stats(sys.stdout, options.geoloc_ss, options.tld_ss, selected=False)
+    if options.test > 0:
+        stats.test_geolocation(sys.stdout,
+                               options.geoloc_ss,
+                               options.tld_ss,
+                               selected=False,
+                               repetitions=options.test)
+    else:
+        stats.print_stats(sys.stdout, options.geoloc_ss, options.tld_ss, selected=False)
 
 
 if __name__ == '__main__':

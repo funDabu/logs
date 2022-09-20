@@ -34,3 +34,6 @@ caption {
 .selectable:not(.selected) {
     display: none;
 }
+button.selectable:not(.selected) {
+    display: inline;
+}

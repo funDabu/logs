@@ -289,11 +289,11 @@ CCTLDS = { # coutry code top level domains
 class Ez_timer:
     __slots__ = ("name", "time")
 
-    def __init__(self, name: str, start=True):
+    def __init__(self, name: str, start=True, verbose=True):
         self.name = name
         self.time = None
         if start:
-            self.start()
+            self.start(verbose)
     
     def start(self, verbose=True) -> float:
         self.time = time.time()
@@ -486,10 +486,19 @@ class Log_stats:
         if self.err_mess:
             timer.finish()
     
-        self._print_countries_stats(html,
-                                    geoloc_sample_size,
-                                    cctld_sample_size,
-                                    selected=selected)
+    def test_geolocation(self,
+                        output: TextIO,
+                        geoloc_sample_size=300,
+                        cctld_sample_size=300,
+                        selected=True,
+                        repetitions: int=1):
+
+        html: Html_maker = Html_maker()
+        self._test_geolocation(html,
+                               geoloc_sample_size,
+                               cctld_sample_size,
+                               selected=selected,
+                               repetitions=repetitions)
         
         print(html.html(), file=output)
 
@@ -775,7 +784,99 @@ class Log_stats:
                                 title=f"Distribution of {group_name} across {xlabel}",
                                 y_tick_lables=x_ticks_labels,
                                 left_margin=left_margin)
+
+    def _test_geolocation(self,
+                         html: Html_maker,
+                         geoloc_sample_size: int, 
+                         tld_sample_size: int,
+                         repetitions: int = 5,
+                         selected: bool=False):
+
+        # now olnly for human users
+        data: List[Ip_stats] = list(self.people.stats.values())
+        samples: List[List[Ip_stats]] = []
+        sample_size = min(len(data),
+                          max(geoloc_sample_size, tld_sample_size) )
+
+        for _ in range(repetitions):
+            if len(data) > sample_size:
+                samples.append(random.sample(data, sample_size))
+            else:
+                geoloc_sample_size = tld_sample_size = len(data)
+                samples.append(data)
+
+        # geolocation
+        timer = Ez_timer("geolocations", verbose=self.err_mess)
+
+        geoloc_stats = []
+        for i, sample in enumerate(samples):
+            timer2 = Ez_timer(f"geolocaion {i+1}", verbose=False)
+            geostat = {}
+
+            for ip_stat in sample[:geoloc_sample_size]:
+                if not ip_stat.geolocation:
+                    ip_stat.update_geolocation()
+                value = geostat.get(ip_stat.geolocation, 0)
+                geostat[ip_stat.geolocation] = value + (100 / sample_size)
+
+            geoloc_stats.append(geostat)
+            timer2.finish(self.err_mess) 
+
+        timer.finish(self.err_mess)
         
+        # TLD stats
+        timer = Ez_timer("TLD updates", verbose=self.err_mess)
+
+        tld_stats = []
+        for i, sample in enumerate(samples):
+            timer2 = Ez_timer(f"TLD update {i+1}", verbose=False)
+            tld_stat = {}
+
+            for ip_stat in sample[:tld_sample_size]:
+                if ip_stat.host_name == 'Unresolved':
+                    ip_stat.update_host_name()
+                tld = ip_stat.host_name.rsplit('.')[-1]
+                value = tld_stat.get(tld, 0)
+                tld_stat[tld] = value + (100 / sample_size)
+            
+            tld_stats.append(tld_stat)
+            timer2.finish(self.err_mess)
+
+        if self.err_mess:
+            timer.finish()
+        
+        # Printing
+        selected = "selected" if selected else ""
+
+        html.append("<h3>Estimated locations</h3>\n<label>Select:</label>")
+        button_names = [f"geoloc{i}" for i in range(1, repetitions + 1)]
+        button_names.extend(f"tld {i}" for i in range(1, repetitions + 1))
+        uniq_classes = html.print_sel_buttons(
+            button_names,
+            [["selectable", selected]]*(repetitions*2) )
+        
+        # print geolocation
+        html.append(f'<div class="flex-align-start">')       
+        for i in range(repetitions):
+            html.append(f'<div class="selectable {selected} {uniq_classes[i]}">')
+            self.print_countries_bars(html,
+                                    geoloc_stats[i],
+                                    "Geolocation",
+                                    left_margin=True,
+                                    max_size=20 )
+            html.append("</div>")
+        html.append("</div>")
+
+        # print tld
+        html.append(f'<div class="flex-align-start">')       
+        for i in range(repetitions):
+            html.append(f'<div class="selectable {selected} {uniq_classes[i+repetitions]}">')
+            self.print_countries_bars(html,
+                                    tld_stats[i],
+                                    "Top level domains",
+                                    max_size=20)
+        html.append("</div>")
+  
     def _print_countries_stats(self,
                                html: Html_maker,
                                geoloc_sample_size: int, 
