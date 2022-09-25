@@ -1,5 +1,5 @@
 from select import select
-from typing import List, TextIO, Optional, Tuple, Dict
+from typing import List, TextIO, Optional, Tuple, Dict, Set
 from collections import Counter
 import sys
 import socket
@@ -426,6 +426,8 @@ class Log_stats:
         self.people = Stat_struct()
         self.err_mess = err_mess
 
+        self.daily_data: Dict[str, Tuple[Set[str], int]] = {}
+
         if input:
             self.make_stats(input)
     
@@ -468,6 +470,14 @@ class Log_stats:
         stats.day_sess_distrib[ ip_stat.date.hour ] += new_sess
         stats.week_sess_distrib[ ip_stat.date.weekday() ] += new_sess
         stats.month_sess_distrib[(ip_stat.date.year, ip_stat.date.month)] += new_sess
+
+        # making daily_data for the picture
+        date = ip_stat.date.isocalendar()
+        ip_addreses, req_num = self.daily_data.get(date, (set(), 0) )
+        ip_addreses.add(ip_stat.ip_addr)
+        self.daily_data[date] = (ip_addreses, req_num + 1)
+
+
 
     
     def print_stats(self,
