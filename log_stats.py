@@ -472,7 +472,7 @@ class Log_stats:
         stats.month_sess_distrib[(ip_stat.date.year, ip_stat.date.month)] += new_sess
 
         # making daily_data for the picture
-        date = ip_stat.date.isocalendar()
+        date = ip_stat.date.date()
         ip_addreses, req_num = self.daily_data.get(date, (set(), 0) )
         ip_addreses.add(ip_stat.ip_addr)
         self.daily_data[date] = (ip_addreses, req_num + 1)
@@ -481,9 +481,6 @@ class Log_stats:
 
     
     def print_stats(self,
-                    output: TextIO,
-                    geoloc_sample_size=300,
-                    cctld_sample_size=300,
                     selected=True):
         
         html: Html_maker = Html_maker()
