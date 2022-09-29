@@ -1,6 +1,6 @@
 from log_stats import Log_stats
 from PIL import Image, ImageDraw, ImageFont
-from typing import List
+from typing import List, Optional
 import sys
 
 
@@ -40,8 +40,10 @@ def print_month(x: int, height: int, month: str, img: Image.Image):
     month_img = month_img.rotate(90, expand=1)
     img.paste(month_img, (x, height))
 
-def make_picture():
-    stats = Log_stats(sys.stdin, True)
+def make_picture(stats: Optional[Log_stats] = None,
+                 output_name: str = "overview.png"):
+    if stats is None:
+        stats = Log_stats(sys.stdin, True)
     data = sorted(stats.daily_data.items(), key=lambda x: x[0])
     # values = list( map(lambda x: x[1][1], data) ) # just request numbers
 
@@ -74,9 +76,7 @@ def make_picture():
             current_month = month
             print_month(x, height + 4 + top_margin, month, img)
 
-
-    
-    img.save("../overview.png", format="png")
+    img.save(output_name, format="png")
 
 
 def main():

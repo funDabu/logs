@@ -427,6 +427,8 @@ class Log_stats:
         self.err_mess = err_mess
 
         self.daily_data: Dict[str, Tuple[Set[str], int]] = {}
+        self.year_stats: Dict[int, Tuple(Stat_struct, Stat_struct)] = {}
+        self.current_year = None
 
         if input:
             self.make_stats(input)
@@ -446,6 +448,8 @@ class Log_stats:
         
         if self.err_mess:
             timer.finish()
+        
+        self._switch_years(self.current_year)
     
     def _add_entry(self, entry: Log_entry):
         bot_url = entry.get_bot_url()
@@ -458,10 +462,16 @@ class Log_stats:
             key = entry.ip_addr
 
         ip_stat = stats.stats.get(key)
+
         if ip_stat is None:
             ip_stat = Ip_stats(entry, bot_url)
-        
         new_sess = ip_stat.add_entry(entry) # 1 if new session was created, 0 otherwise
+
+        year = ip_stat.date.year
+        if self.current_year != year:
+            self._switch_years(year)
+            stats = self.bots if bot_url else self.people
+        
         
         stats.stats[key] = ip_stat
         stats.day_req_distrib[ip_stat.date.hour] += 1
@@ -477,12 +487,23 @@ class Log_stats:
         ip_addreses.add(ip_stat.ip_addr)
         self.daily_data[date] = (ip_addreses, req_num + 1)
 
-
-
-    
-    def print_stats(self,
-                    selected=True):
+    def _switch_years(self, year: int):
+        if self.current_year is not None:
+            self.year_stats[self.current_year] = (self.bots, self.people)
         
+        self.current_year = year
+        self.bots, self.people =\
+            self.year_stats.get(year, (Stat_struct(), Stat_struct()) )
+
+    def print_stats(self,
+                    output:TextIO,
+                    geoloc_sample_size,
+                    cctld_sample_size,
+                    selected=True,
+                    year=None):
+        if year is not None:
+            self._switch_years(year)
+            
         html: Html_maker = Html_maker()
         if self.err_mess:
             timer = Ez_timer("making charts of bots and human users")
@@ -492,13 +513,20 @@ class Log_stats:
         self._print_users(html, selected)
         if self.err_mess:
             timer.finish()
+
+        self._print_countries_stats(html, geoloc_sample_size, cctld_sample_size, selected)
+
+        print(html.html(), file=output)
     
     def test_geolocation(self,
                         output: TextIO,
                         geoloc_sample_size=300,
                         cctld_sample_size=300,
                         selected=True,
-                        repetitions: int=1):
+                        repetitions: int=1,
+                        year: int = None):
+        if year is not None:
+            self._switch_years(year)
 
         html: Html_maker = Html_maker()
         self._test_geolocation(html,
