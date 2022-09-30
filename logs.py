@@ -53,7 +53,10 @@ def make_log_stats(log_stats: Log_stats, geoloc_ss: int, tld_ss: int, selected: 
             log_stats.print_stats(file, geoloc_ss, tld_ss, selected, year)
     
     with open("logs_index.html", "w") as file:
+        file.write("<h2>Overview</h2>\n")
         file.write("<img src='overview.png'>\n")
+
+        file.write("<h2>Statistics per year</h2>\n")
         file.write("<ul>\n")
         for year in log_stats.year_stats.keys():
             file.write(f"<li><a href='{year}.html'> year {year} </a></li>\n")
