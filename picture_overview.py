@@ -12,27 +12,42 @@ def make_annotations(maximum: int) -> List[str]:
     return [ "{:.2e}".format(fifth * i) for i in range(6) ]
 
 
-def annotate(draw: ImageDraw, annotations: List[str], width:int, height: int, top_margin: int):
+def annotate(draw: ImageDraw,
+             day_annotations: List[str],
+             month_annotations: List[str],
+             width:int, height: int,
+             zero_line: int):
     fifth = height // 5
-    y = height + top_margin
+    y = zero_line
+
+    month_width, _ = get_text_size(month_annotations[-1])
 
     for i in range(6):
-        draw.text( (2, y), annotations[i], fill=(0,0,0) )
-        draw.rectangle( [(2, y), (width, y) ], fill=(100,100,100) )
+        draw.text((2, y), day_annotations[i], fill=(0,0,0))
+        draw.text((width - month_width - 2, y),
+                  month_annotations[i],
+                  fill=(0,0,0) )
+        draw.rectangle( [(2, y), (width-2, y) ], fill=(100,100,100) )
         y -= fifth
+
+
+def get_text_size(text: str, font: Optional[ImageFont.ImageFont] = None) -> int:
+    if font is None:
+        font = ImageFont.load_default()
     
-
-def print_month(x: int, zero_line: int, month: str, img: Image.Image):
-    font = ImageFont.load_default()
-
     # older version
     # w, h = font.getsize(month)
 
     # new version 
-    l, t, r, b = font.getbbox(month)
+    l, t, r, b = font.getbbox(text)
     w = r-l
     h = b-t
 
+    return (w, h)
+
+
+def print_month(x: int, zero_line: int, month: str, img: Image.Image):
+    w,h = get_text_size(month)
     month_img = Image.new('L', (w,h), 'white')
     month_draw = ImageDraw.Draw(month_img)
     month_draw.text((0,0), month, fill=0)
@@ -64,7 +79,8 @@ def make_picture(stats: Optional[Log_stats] = None,
     maximum = max(map(lambda x: x[1][1], data))
     months_maximum = get_months_maximum(stats)
     # print(months_maximum) # DEBUG
-    annotations = make_annotations(maximum)
+    day_annotations = make_annotations(maximum)
+    month_annotaions = make_annotations(months_maximum)
 
     left_margin = 60
     right_margin = 60
@@ -92,7 +108,7 @@ def make_picture(stats: Optional[Log_stats] = None,
 
     for coords in month_recs:
         draw.rectangle(coords, fill=(120,120,120))
-    annotate(draw, annotations, width, height, top_margin)
+    annotate(draw, day_annotations, month_annotaions, width, height, zero_line)
     for coords in day_recs:
         draw.rectangle(coords, fill=(0,0,0))
     for x, label in x_labels:
@@ -101,10 +117,6 @@ def make_picture(stats: Optional[Log_stats] = None,
 
     # month_img.paste(img)
     img.save(output_name, format="png")
-
-
-def draw_rectangles(draw: ImageDraw, rectangels, color=(0,0,0)):
-    pass
 
 
 def get_rectangles(data,
