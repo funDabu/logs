@@ -97,20 +97,33 @@ def day_data_to_month_data(data:Iterable[Tuple[int, int, str]])\
     return month_data
     
 
+def make_both_pictures(stats: Log_stats):
+    base_step = 2
 
-def make_picture(stats: Optional[Log_stats] = None,
-                 output_name: str = "overview.png"):
-    if stats is None:
-        stats = Log_stats(sys.stdin, True)
     data = sorted(stats.daily_data.items(), key=lambda x: x[0])
     # print(data) #DEBUG
 
-    day_data = list(map(lambda x: (1, x[1][1], x[0].isoformat()), data))
+    # pure request count
+    day_data = list(map(lambda x: (base_step, x[1][1], x[0].isoformat()), data))
     # DEBUG ^make it more readabel 
     # print(day_data) #DEBUG
     month_data = day_data_to_month_data(day_data)
-    # print(month_data) #DEBUG
+    make_picture(day_data, month_data, base_step, "requests_overview.png")
 
+    # unique IP count
+    day_data = list(map(lambda x: (base_step, len(x[1][0]), x[0].isoformat()), data))
+    month_data = day_data_to_month_data(day_data)
+    make_picture(day_data, month_data, base_step, "unique_ip_overview.png")
+     
+
+def fix_outliers(month_data: List[Tuple[int, int, str]])\
+        -> int:
+    pass
+
+def make_picture(day_data: List[Tuple[int, int, str]],
+                 month_data: List[Tuple[int, int, str]],
+                 base_step: int,
+                 output_name: str = "overview.png"):
 
     day_maximum = max(map(lambda x: x[1], day_data))
     month_maximum = max(map(lambda x: x[1], month_data))
@@ -121,7 +134,7 @@ def make_picture(stats: Optional[Log_stats] = None,
     bottom_margin = 70
     top_margin = 10
     height = 800
-    width = 2*len(data) + left_margin + right_margin
+    width = base_step*len(day_data) + left_margin + right_margin
 
     zero_line = top_margin + height
 
@@ -132,7 +145,7 @@ def make_picture(stats: Optional[Log_stats] = None,
     draw = ImageDraw.Draw(img)
 
     for coords, _ in month_recs:
-        draw.rectangle(coords, fill=(120,120,120))
+        draw.rectangle(coords, fill=(150,150,150))
     annotate(draw, day_maximum, month_maximum, width, height, zero_line)
     for coords,_ in day_recs:
         draw.rectangle(coords, fill=(0,0,0))
@@ -177,7 +190,8 @@ def draw_x_labels(img: Image.Image,
 
 
 def main():
-    make_picture()
+    stats = Log_stats(sys.stdin, True)
+    make_both_pictures(stats)
 
 
 if __name__ == '__main__':
