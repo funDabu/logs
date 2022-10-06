@@ -144,11 +144,11 @@ def make_both_pictures(stats: Union[Log_stats, str], load_json=False, output_jso
 
 
 def get_day_max(day_data: List[Tuple[int, int, str]],
-                month_count: int)\
+                month_count: int, fix_outlieres=False)\
         -> int:
     # fix outliers
 
-    count = month_count // 4  # 3 possible outliers per year
+    count = month_count // 4 if fix_outlieres else 0  # 3 possible outliers per year
     day_maxs = sorted(map(lambda x: x[1], day_data), reverse=True)[:count+1]
     return day_maxs[-1]
 
@@ -156,10 +156,10 @@ def get_day_max(day_data: List[Tuple[int, int, str]],
 def make_picture(day_data: List[Tuple[int, int, str]],
                  month_data: List[Tuple[int, int, str]],
                  base_step: int,
-                 fix_outlieres:bool = False,
+                 fix_outlieres: bool = False,
                  output_name: str = "overview.png"):
 
-    day_maximum = get_day_max(day_data, len(month_data))
+    day_maximum = get_day_max(day_data, len(month_data), fix_outlieres)
     month_maximum = max(map(lambda x: x[1], month_data))
     # print(months_maximum) # DEBUG
 
@@ -211,7 +211,7 @@ class PIL_data:
              draw: ImageDraw.ImageDraw,
              color=(0, 0, 0),
              draw_x_labels: bool = False,
-             pritify_label = lambda x: x):
+             pritify_label=lambda x: x):
         rec = self.rectangle
         draw.rectangle(rec, fill=color)
 
@@ -226,7 +226,7 @@ class PIL_data:
             b2 = (rec[1][0] + overhang, rec[1][1] - 1)
 
             v = ((rec[0][0] + rec[1][0]) // 2, rec[1][1] - height - 1)
- 
+
             draw.polygon([b1, b2, v], fill=(0, 0, 0))
             draw_label(v[0], v[1]-2, img, self.y_label, 90, "bc")
 
