@@ -1,6 +1,6 @@
 from optparse import OptionParser
 from log_stats import  Log_stats
-from picture_overview import make_picture
+from picture_overview import make_both_pictures
 import sys
 
 
@@ -46,7 +46,7 @@ def main():
 
 
 def make_log_stats(log_stats: Log_stats, geoloc_ss: int, tld_ss: int, selected: bool):
-    make_picture(log_stats, "overview.png")
+    make_both_pictures(log_stats)
 
     for year in log_stats.year_stats.keys():
         with open(f"{year}.html", "w") as file:
