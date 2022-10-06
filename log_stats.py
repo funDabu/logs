@@ -1,4 +1,3 @@
-from select import select
 from typing import List, TextIO, Optional, Tuple, Dict, Set
 from collections import Counter
 import sys
@@ -1074,7 +1073,7 @@ class Log_stats:
             y += 3
         plt.rcParams['figure.figsize'] = (x, y)
 
-        _, ax = plt.subplots()
+        fig, ax = plt.subplots()
         ax.ticklabel_format(axis='x', style='sci', scilimits=(-4, 4), useOffset=False)
         ax.barh(y=ys, width=xs, align='center')
 
@@ -1098,4 +1097,5 @@ class Log_stats:
             plt.savefig(f, format="svg")
             html.append(f.getvalue())
         plt.clf()
+        plt.close(fig)
         plt.rcParams['figure.figsize'] = plt.rcParamsDefault['figure.figsize']
