@@ -54,7 +54,10 @@ def make_log_stats(log_stats: Log_stats, geoloc_ss: int, tld_ss: int, selected: 
     
     with open("logs_index.html", "w") as file:
         file.write("<h2>Overview</h2>\n")
-        file.write("<img src='overview.png'>\n")
+        file.write("<h3>Requests</h3>\n")
+        file.write("<img src='requests_overview.png'>\n")
+        file.write("<h3>Unique IP addresses</h3>\n")
+        file.write("<img src='unique_ip_overview.png'>\n")
 
         file.write("<h2>Statistics per year</h2>\n")
         file.write("<ul>\n")

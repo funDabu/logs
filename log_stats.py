@@ -958,7 +958,7 @@ class Log_stats:
             timer = Ez_timer("geolocation")
 
         geoloc_stats = {}
-        max_val = 0
+        val_sum = 0
 
         for ip_stat in sample[:geoloc_sample_size]:
             if not ip_stat.geolocation:
@@ -967,12 +967,12 @@ class Log_stats:
             value = geoloc_stats.get(ip_stat.geolocation, 0)
             value += ip_stat.requests_num  # weight the value by number of requests
             geoloc_stats[ip_stat.geolocation] = value
-            max_val = max(max_val, value)
+            val_sum += value
 
         if self.err_mess:
             timer.finish()
 
-        geoloc_stats = sorted(map(lambda x, m=max_val: (x[0], 100 * x[1] / m),
+        geoloc_stats = sorted(map(lambda x, s=val_sum: (x[0], 100 * x[1] / s),
                                   geoloc_stats.items()),
                               key=lambda x: x[1],
                               reverse=True)
@@ -982,7 +982,7 @@ class Log_stats:
             timer = Ez_timer("TLD update")
 
         tld_stats = {}
-        max_val = 0
+        val_sum = 0
 
         for ip_stat in sample[:tld_sample_size]:
             if ip_stat.host_name == 'Unresolved':
@@ -991,18 +991,18 @@ class Log_stats:
             value = tld_stats.get(tld, 0)
             value += ip_stat.requests_num
             tld_stats[tld] = value
-            max_val = max(value, max_val)
+            val_sum += value
 
         if self.err_mess:
             timer.finish()
         
-        tld_stats = sorted(map(lambda x, m=max_val: (x[0], 100 * x[1] / m),
+        tld_stats = sorted(map(lambda x, s=val_sum: (x[0], 100 * x[1] / s),
                                tld_stats.items()),
                            key=lambda x: x[1],
                            reverse=True)
 
         cctld_stats = {}
-        max_val = 0
+        val_sum = 0
 
         for ip_stat in sample[:tld_sample_size]:
 
@@ -1012,9 +1012,9 @@ class Log_stats:
                 value = cctld_stats.get(country, 0) 
                 value += ip_stat.requests_num
                 cctld_stats[country] = value
-                max_val = max(value, max_val)
+                val_sum += value
 
-        cctld_stats = sorted(map(lambda x, m=max_val: (x[0], 100 * x[1] / m),
+        cctld_stats = sorted(map(lambda x, s=val_sum: (x[0], 100 * x[1] / s),
                                  cctld_stats.items()),
                     key=lambda x: x[1],
                     reverse=True)
@@ -1050,7 +1050,7 @@ class Log_stats:
                                       geoloc_stats,
                                       "Geolocation",
                                       left_margin=True,
-                                      max_size=20)
+                                      max_size=10)
             html.append('<a href="http://www.geoplugin.com/geolocation/">IP Geolocation</a>'
                         ' by <a href="http://www.geoplugin.com">geoPlugin</a>\n</div>')
 
@@ -1067,7 +1067,7 @@ class Log_stats:
             self.print_countries_bars(html,
                                       tld_stats,
                                       "Top level domains",
-                                      max_size=20)
+                                      max_size=10)
             # ccTLD graph
             html.append(
                 f'</div>\n<div class="selectable {selected} {uniq_classes[4]}">')
@@ -1075,7 +1075,7 @@ class Log_stats:
                                       cctld_stats,
                                       "Country code top level domains",
                                       left_margin=True,
-                                      max_size=20)
+                                      max_size=10)
             html.append('</div>')
 
         html.append('</div>')
