@@ -1,46 +1,52 @@
-from log_stats import Log_stats, Stat_struct
+from log_stats import Log_stats
 from PIL import Image, ImageDraw, ImageFont
-from typing import Callable, List, Optional, Tuple, Iterable
+from typing import Iterator, List, Optional, Tuple, Iterable, Union
 import sys
+import json
 
 
-MONTHS = ["Error", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+MONTHS = ["Error", "Jan", "Feb", "Mar", "Apr", "May",
+          "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
 def make_annotations(maximum: int) -> List[str]:
     # Currently not used
     fifth = maximum // 5
-    return [ "{:.2e}".format(fifth * i) for i in range(6) ]
+    return ["{:.2e}".format(fifth * i) for i in range(6)]
 
 
 def annotate(draw: ImageDraw.ImageDraw,
              day_maximum: int,
              month_maximum: int,
-             width:int,
+             width: int,
              height: int,
              zero_line: int,
-             font: ImageFont.ImageFont=None):
+             font: ImageFont.ImageFont = None):
     fifth = height // 5
     y = zero_line
-    label_width, _ = get_text_size("{:.2e}".format(day_maximum), font)
+    month_width, _ = get_text_size("{:_}".format(
+        month_maximum), font)  # TODO: nicer format
 
     for i in range(6):
-        draw.text((2, y), "{:.2e}".format( day_maximum // 5 * i), fill=(0,0,0))
-        draw.text((width-2-label_width, y),
-                  "{:.2e}".format( month_maximum // 5 * i),
-                  fill=(0,0,0))
-        draw.rectangle( [(2, y), (width-2, y) ], fill=(100,100,100) )
+        draw.text((2, y), "{:_}".format(  # TODO: nicer format
+            day_maximum // 5 * i), fill=(0, 0, 0))
+        draw.text((width-2-month_width, y),
+                  "{:_}".format(month_maximum // 5 * i),
+                  fill=(0, 0, 0))
+        draw.rectangle([(2, y), (width-2, y)], fill=(100, 100, 100))
         y -= fifth
 
 
-def get_text_size(text: str, font: Optional[ImageFont.ImageFont] = None) -> int:
+def get_text_size(text: str,
+                  font: Optional[ImageFont.ImageFont] = None)\
+        -> int:
     if font is None:
         font = ImageFont.load_default()
-    
+
     # older version - will be removed in Pillow 10 (2023)
     w, h = font.getsize(text)
 
-    # # new version 
+    # # new version
     # l, t, r, b = font.getbbox(text)
     # w = r-l
     # h = b-t
@@ -48,32 +54,37 @@ def get_text_size(text: str, font: Optional[ImageFont.ImageFont] = None) -> int:
     return (w, h)
 
 
-def print_month(x: int, zero_line: int, month: str, img: Image.Image):
-    w,h = get_text_size(month)
-    month_img = Image.new('L', (w,h), 'white')
-    month_draw = ImageDraw.Draw(month_img)
-    month_draw.text((0,0), month, fill=0)
+def draw_label(x: int,
+               y: int,
+               img: Image.Image,
+               label: str,
+               rotation: int = 0,
+               anchor: str = "tl"):
+    # anchor: "[tcb][lcr]"
 
-    month_img = month_img.rotate(90, expand=1)
-    img.paste(month_img, (x, zero_line + 2))
+    w, h = get_text_size(label)
+    label_img = Image.new('L', (w, h), 255)
+    label_draw = ImageDraw.Draw(label_img)
+    label_draw.text((0, 0), label, fill=0)
+
+    if rotation:
+        label_img = label_img.rotate(rotation, expand=1)
+
+    pic_w, pic_h = label_img.size
+    if anchor[0] == "b":
+        y -= pic_h
+    elif anchor[0] == "c":
+        y -= pic_h // 2
+    if anchor[1] == "r":
+        x -= pic_w
+    elif anchor[1] == "c":
+        x -= pic_w // 2
+
+    img.paste(label_img, (x, y))
 
 
-def get_months_maximum(stat: Log_stats):
-    # Currently not used
-
-    def get_max_month_reqs(struct: Stat_struct) -> int:
-        max1 = max( struct.month_req_distrib.values() )
-        # print(max1) #DEBUG
-        return max1
-
-    maxs = map(lambda x: get_max_month_reqs(x[0]) + get_max_month_reqs(x[1]),
-               stat.year_stats.values() )
-    
-    return max(maxs)
-
-
-def day_data_to_month_data(data:Iterable[Tuple[int, int, str]])\
-                            -> List[Tuple[int, int, str]]:
+def day_data_to_month_data(data: Iterable[Tuple[int, int, str]])\
+        -> List[Tuple[int, int, str]]:
     month_data = []
 
     current_month = None
@@ -81,7 +92,7 @@ def day_data_to_month_data(data:Iterable[Tuple[int, int, str]])\
     month_width = 0
 
     for width, value, date in data:
-        split_date = date.split("-") # date is isoformat ("YYYY-MM-DD")
+        split_date = date.split("-")  # date is isoformat ("YYYY-MM-DD")
         month = f"{split_date[0]}-{split_date[1]}"
 
         if month != current_month:
@@ -89,86 +100,160 @@ def day_data_to_month_data(data:Iterable[Tuple[int, int, str]])\
                 month_data.append((month_width, month_value, current_month))
                 month_value, month_width = 0, 0
             current_month = month
-        
+
         month_width += width
         month_value += value
 
     month_data.append((month_width, month_value, current_month))
     return month_data
-    
 
-def make_both_pictures(stats: Log_stats):
+
+def make_both_pictures(stats: Union[Log_stats, str], load_json=False, output_json=""):
     base_step = 2
 
-    data = sorted(stats.daily_data.items(), key=lambda x: x[0])
+    if load_json:
+        with open(stats, "r") as data_f:
+            data = json.load(data_f)
+    else:
+        # make data form stats: Log_stats
+        data_objects = sorted(stats.daily_data.items(), key=lambda x: x[0])
+        data = {}
+
+        # pure request count
+        data["day_requests"] = list(
+            map(lambda x: (base_step, x[1][1], x[0].isoformat()), data_objects))
+        # DEBUG ^make it more readabel
+        # print(data["day_requests"]) #DEBUG
+        data["month_requests"] = day_data_to_month_data(data["day_requests"])
+
+        # unique IP count
+        data["day_ips"] = list(
+            map(lambda x: (base_step, len(x[1][0]), x[0].isoformat()), data_objects))
+        data["month_ips"] = day_data_to_month_data(data["day_ips"])
+
     # print(data) #DEBUG
 
-    # pure request count
-    day_data = list(map(lambda x: (base_step, x[1][1], x[0].isoformat()), data))
-    # DEBUG ^make it more readabel 
-    # print(day_data) #DEBUG
-    month_data = day_data_to_month_data(day_data)
-    make_picture(day_data, month_data, base_step, "requests_overview.png")
+    if output_json != "":
+        with open(output_json, "w") as output_f:
+            json.dump(data, output_f)
 
-    # unique IP count
-    day_data = list(map(lambda x: (base_step, len(x[1][0]), x[0].isoformat()), data))
-    month_data = day_data_to_month_data(day_data)
-    make_picture(day_data, month_data, base_step, "unique_ip_overview.png")
-     
+    make_picture(data["day_requests"], data["month_requests"],
+                 base_step, True, "requests_overview.png")
+    make_picture(data["day_ips"], data["month_ips"],
+                 base_step, False, "unique_ip_overview.png")
 
-def fix_outliers(month_data: List[Tuple[int, int, str]])\
+
+def get_day_max(day_data: List[Tuple[int, int, str]],
+                month_count: int)\
         -> int:
-    pass
+    # fix outliers
+
+    count = month_count // 4  # 3 possible outliers per year
+    day_maxs = sorted(map(lambda x: x[1], day_data), reverse=True)[:count+1]
+    return day_maxs[-1]
+
 
 def make_picture(day_data: List[Tuple[int, int, str]],
                  month_data: List[Tuple[int, int, str]],
                  base_step: int,
+                 fix_outlieres:bool = False,
                  output_name: str = "overview.png"):
 
-    day_maximum = max(map(lambda x: x[1], day_data))
+    day_maximum = get_day_max(day_data, len(month_data))
     month_maximum = max(map(lambda x: x[1], month_data))
     # print(months_maximum) # DEBUG
 
-    left_margin = 60
-    right_margin = 60
+    left_margin = 70
+    right_margin = 70
     bottom_margin = 70
-    top_margin = 10
+    top_margin = 80
     height = 800
     width = base_step*len(day_data) + left_margin + right_margin
 
     zero_line = top_margin + height
 
-    day_recs = get_rectangles(day_data, day_maximum, height, left_margin, zero_line)
-    month_recs = get_rectangles(month_data, month_maximum, height, left_margin, zero_line)
-
-    img = Image.new('RGB', (width, height + bottom_margin + top_margin), (255,255,255))
+    img = Image.new('RGB', (width, height + bottom_margin +
+                    top_margin), (255, 255, 255))
     draw = ImageDraw.Draw(img)
 
-    for coords, _ in month_recs:
-        draw.rectangle(coords, fill=(150,150,150))
+    for data_object in render_iter(month_data,
+                                   month_maximum,
+                                   height,
+                                   left_margin + 1,
+                                   zero_line,
+                                   False):
+        data_object.draw(img, draw, (170, 170, 170), True, pritify_month)
+
     annotate(draw, day_maximum, month_maximum, width, height, zero_line)
-    for coords,_ in day_recs:
-        draw.rectangle(coords, fill=(0,0,0))
-    draw_x_labels(img, month_recs, zero_line, pritify_month)
+    for data_object in render_iter(day_data,
+                                   day_maximum,
+                                   height,
+                                   left_margin + 1,
+                                   zero_line,
+                                   fix_outlieres):
+        data_object.draw(img, draw)
 
     img.save(output_name, format="png")
 
 
-def get_rectangles(data: Iterable[Tuple[int, int, str]],
-                   maximum: int,
-                   height: int,
-                   x: int,
-                   zero_line: int)\
-    -> List[Tuple[ Tuple[Tuple[int, int],Tuple[int,int]], str]]:
+class PIL_data:
+    __slots__ = ("rectangle", "arrow", "x_label", "y_label", "outlier")
 
-    rectangles = []
+    def __init__(self, outlier=False) -> None:
+        self.rectangle = []
+        self.arrow = []
+        self.x_label = ""
+        self.y_label = ""
+        self.outlier = outlier
+
+    def draw(self,
+             img: Image.Image,
+             draw: ImageDraw.ImageDraw,
+             color=(0, 0, 0),
+             draw_x_labels: bool = False,
+             pritify_label = lambda x: x):
+        rec = self.rectangle
+        draw.rectangle(rec, fill=color)
+
+        if draw_x_labels:
+            draw_label(rec[0][0], rec[0][1] + 2,
+                       img, pritify_label(self.x_label),
+                       rotation=90, anchor="tl")
+        if self.outlier:
+            overhang = 2
+            height = 5
+            b1 = (rec[0][0] - overhang, rec[1][1] - 1)
+            b2 = (rec[1][0] + overhang, rec[1][1] - 1)
+
+            v = ((rec[0][0] + rec[1][0]) // 2, rec[1][1] - height - 1)
+ 
+            draw.polygon([b1, b2, v], fill=(0, 0, 0))
+            draw_label(v[0], v[1]-2, img, self.y_label, 90, "bc")
+
+
+def render_iter(data: Iterable[Tuple[int, int, str]],
+                maximum: int,
+                height: int,
+                x: int,
+                zero_line: int,
+                check_outliers: bool = False)\
+        -> Iterator[PIL_data]:
+    data_obj: PIL_data = PIL_data()
 
     for w, h, label in data:
-        value = round((h * height / maximum))
-        rectangles.append(([(x, zero_line), (x+w-1 , zero_line-value)], label))
+        outlier = check_outliers and h > maximum
+        value = height if outlier else round((h * height / maximum))
+
+        data_obj.rectangle = [(x, zero_line), (x+w-1, zero_line - value)]
         x += w
- 
-    return rectangles
+        data_obj.x_label = label
+        if outlier:
+            data_obj.y_label = "{:_}".format(h)
+            data_obj.outlier = True
+        else:
+            data_obj.outlier = False
+
+        yield data_obj
 
 
 def pritify_month(month: str) -> str:
@@ -177,21 +262,16 @@ def pritify_month(month: str) -> str:
     return f"{pretty_month} {splited_month[0]}"
 
 
-def draw_x_labels(img: Image.Image,
-                  rectangles: List[Tuple[ Tuple[Tuple[int, int],
-                                                Tuple[int,int]],
-                                          str ]],
-                  zero_line: int,
-                  pritify: Callable[[str], str] = lambda x:x):
-    for coords, label in rectangles:
-        x = coords[0][0]
-        zero_line = coords[0][1]
-        print_month(x, zero_line, pritify(label), img)
-
-
 def main():
-    stats = Log_stats(sys.stdin, True)
-    make_both_pictures(stats)
+    if len(sys.argv) == 3:
+        if sys.argv[1] == "load":
+            make_both_pictures(sys.argv[2], True)
+        elif sys.argv[1] == "save":
+            stats = Log_stats(sys.stdin, True)
+            make_both_pictures(stats, False, sys.argv[2])
+    else:
+        stats = Log_stats(sys.stdin, True)
+        make_both_pictures(stats)
 
 
 if __name__ == '__main__':
