@@ -967,7 +967,7 @@ class Log_stats:
             value = geoloc_stats.get(ip_stat.geolocation, 0)
             value += ip_stat.requests_num  # weight the value by number of requests
             geoloc_stats[ip_stat.geolocation] = value
-            val_sum += value
+            val_sum += ip_stat.requests_num
 
         if self.err_mess:
             timer.finish()
@@ -991,7 +991,7 @@ class Log_stats:
             value = tld_stats.get(tld, 0)
             value += ip_stat.requests_num
             tld_stats[tld] = value
-            val_sum += value
+            val_sum += ip_stat.requests_num
 
         if self.err_mess:
             timer.finish()
@@ -1012,7 +1012,7 @@ class Log_stats:
                 value = cctld_stats.get(country, 0) 
                 value += ip_stat.requests_num
                 cctld_stats[country] = value
-                val_sum += value
+                val_sum += ip_stat.requests_num
 
         cctld_stats = sorted(map(lambda x, s=val_sum: (x[0], 100 * x[1] / s),
                                  cctld_stats.items()),
