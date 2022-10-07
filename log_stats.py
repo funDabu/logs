@@ -446,7 +446,6 @@ class Log_stats:
             timer = Ez_timer("Data parsing and proccessing")
 
         for line in input:
-            # entry = Log_entry(line)
             entry = parse_log_entry(line)
 
             if len(entry) == 9:  # correct format of the log entry
@@ -457,7 +456,6 @@ class Log_stats:
         if self.err_mess:
             timer.finish()
 
-        self._switch_years(self.current_year)
 
     def _add_entry(self, entry: Log_entry):
         dt = datetime.datetime.strptime(entry.time, TIME_FORMAT)
