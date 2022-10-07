@@ -1,3 +1,4 @@
+from statistics import median
 from log_stats import Log_stats
 from PIL import Image, ImageDraw, ImageFont
 from typing import Iterator, List, Optional, Tuple, Iterable, Union
@@ -145,17 +146,23 @@ def make_both_pictures(stats: Union[Log_stats, str], load_json=False, output_jso
     make_picture(data["day_requests"], data["month_requests"],
                  base_step, True, "requests_overview.png")
     make_picture(data["day_ips"], data["month_ips"],
-                 base_step, False, "unique_ip_overview.png")
+                 base_step, True, "unique_ip_overview.png") # set it back to False DEBUG!
 
 
 def get_day_max(day_data: List[Tuple[int, int, str]],
                 month_count: int, fix_outlieres=False)\
         -> int:
-    # fix outliers
 
-    count = month_count // 4 if fix_outlieres else 0  # 3 possible outliers per year
-    day_maxs = sorted(map(lambda x: x[1], day_data), reverse=True)[:count+1]
-    return day_maxs[-1]
+    # fix outliers
+    outliers_count = month_count // 4 if fix_outlieres else 0  # 3 possible outliers per year
+    sorted_data = sorted(map(lambda x: x[1], day_data), reverse=True)
+
+    # remove only outliers bigger or equal to 3*median
+    med = sorted_data[len(sorted_data) // 2]
+    while outliers_count > 0 and sorted_data[outliers_count-1] < 3 * med:
+        outliers_count -= 1
+
+    return sorted_data[outliers_count]
 
 
 def make_picture(day_data: List[Tuple[int, int, str]],
