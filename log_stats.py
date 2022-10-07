@@ -995,7 +995,7 @@ class Log_stats:
 
         if self.err_mess:
             timer.finish()
-        
+
         tld_stats = sorted(map(lambda x, s=val_sum: (x[0], 100 * x[1] / s),
                                tld_stats.items()),
                            key=lambda x: x[1],
@@ -1009,15 +1009,15 @@ class Log_stats:
             tld = ip_stat.host_name.rsplit('.')[-1]
             if tld in CCTLDS:
                 country = CCTLDS[tld]
-                value = cctld_stats.get(country, 0) 
+                value = cctld_stats.get(country, 0)
                 value += ip_stat.requests_num
                 cctld_stats[country] = value
                 val_sum += ip_stat.requests_num
 
         cctld_stats = sorted(map(lambda x, s=val_sum: (x[0], 100 * x[1] / s),
                                  cctld_stats.items()),
-                    key=lambda x: x[1],
-                    reverse=True)
+                             key=lambda x: x[1],
+                             reverse=True)
 
         selected = "selected" if selected else ""
 

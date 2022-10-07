@@ -9,12 +9,6 @@ MONTHS = ["Error", "Jan", "Feb", "Mar", "Apr", "May",
           "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
-def make_annotations(maximum: int) -> List[str]:
-    # Currently not used
-    fifth = maximum // 5
-    return ["{:.2e}".format(fifth * i) for i in range(6)]
-
-
 def annotate(draw: ImageDraw.ImageDraw,
              day_maximum: int,
              month_maximum: int,
@@ -24,17 +18,28 @@ def annotate(draw: ImageDraw.ImageDraw,
              font: ImageFont.ImageFont = None):
     fifth = height // 5
     y = zero_line
-    month_width, _ = get_text_size("{:_}".format(
-        month_maximum), font)  # TODO: nicer format
 
     for i in range(6):
-        draw.text((2, y), "{:_}".format(  # TODO: nicer format
-            day_maximum // 5 * i), fill=(0, 0, 0))
-        draw.text((width-2-month_width, y),
+        draw.text((2, y),
+                   "{:_}".format(day_maximum // 5 * i),
+                   fill=(0, 0, 0))
+
+        text_width, _ = get_text_size("{:_}".format(
+                month_maximum // 5 * i), font)                       
+        draw.text((width-2-text_width, y),
                   "{:_}".format(month_maximum // 5 * i),
                   fill=(0, 0, 0))
+
         draw.rectangle([(2, y), (width-2, y)], fill=(100, 100, 100))
         y -= fifth
+
+    # y axis names
+    _, text_height = get_text_size("per day")
+    draw.text((2, zero_line + text_height + 6), "per day", fill=(0, 0, 0))
+
+    text_width, text_height = get_text_size("per month")
+    draw.text((width-2-text_width, zero_line + text_height + 6),
+              "per month", fill=(0, 0, 0))
 
 
 def get_text_size(text: str,
