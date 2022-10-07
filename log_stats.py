@@ -434,7 +434,8 @@ class Log_stats:
         self.people = Stat_struct()
         self.err_mess = err_mess
 
-        self.daily_data: Dict[str, Tuple[Set[str], int]] = {}
+        self.daily_data: Dict[datetime.date, Tuple[Set[str], int, int]] = {}
+        # ^: date -> (unique_ips, requests_number, people_session_number)
         self.year_stats: Dict[int, Tuple(Stat_struct, Stat_struct)] = {}
         self.current_year = None
 
@@ -489,9 +490,11 @@ class Log_stats:
 
         # making daily_data for the picture
         date = ip_stat.date.date()
-        ip_addreses, req_num = self.daily_data.get(date, (set(), 0))
-        ip_addreses.add(ip_stat.ip_addr)
-        self.daily_data[date] = (ip_addreses, req_num + 1)
+        ip_addrs, req_num, sess_num = self.daily_data.get(date, (set(), 0, 0))
+        ip_addrs.add(ip_stat.ip_addr)
+        if not ip_stat.is_bot and new_sess:
+            sess_num += 1
+        self.daily_data[date] = (ip_addrs, req_num + 1, sess_num)
 
     def _switch_years(self, year: int):
         if self.current_year is not None:
@@ -582,7 +585,7 @@ class Log_stats:
         self._print_most_frequent(html,
                                   req_sorted_stats,
                                   sess_sorted_stats,
-                                  True,
+                                  False,
                                   selected)
         self._print_day_distribution(html, True, selected)
         self._print_week_distribution(html, True, selected)
