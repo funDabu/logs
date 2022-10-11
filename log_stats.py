@@ -329,20 +329,21 @@ class Ip_stats:
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "date")
 
-    def __init__(self, entry: Log_entry, bot_url=None) -> None:
-        self.ip_addr = entry.ip_addr
+    def __init__(self, entry, json=False, bot_url=None) -> None:
+        # when json is False entry is supposted to be Log_entry object
+        # otherwise entry is dict 
+
         self.host_name = "Unresolved"
         self.geolocation = ""
-
-        if bot_url is None:
-            bot_url = entry.get_bot_url()
-        self.bot_url = bot_url
-        self.is_bot = bot_url != ""
-
         self.requests_num = 0
         self.sessions_num = 0
         self.date = datetime.datetime.strptime("01/Jan/1980:00:00:00 +0000",
                                                TIME_FORMAT)
+        self.ip_addr = entry.ip_addr
+        if bot_url is None:
+            bot_url = entry.get_bot_url()
+        self.bot_url = bot_url
+        self.is_bot = bot_url != ""
 
     def update_host_name(self, precision: int = 3) -> None:
         try:
@@ -405,6 +406,23 @@ class Ip_stats:
             self.geolocation = country['geoplugin_countryName']
         except:
             self.geolocation = "Unknown"
+    
+    def _get_attr(self, name:str):
+        if name == "date":
+            return self.date.isoformat()
+        return getattr(self, name, None)
+
+    def json(self):
+        return {key : self._get_attr(key) for key in self.__slots__}
+
+    def _set_attr(self, name, data):
+        if name == "date":
+            self.date = datetime.datetime.fromisoformat(data)
+        setattr(self, name, data)
+
+    def _from_json(self, js):
+        for slot in self.__slots__:
+            self._set_attr(slot, js[slot])
 
 
 def anotate_bars(xs: List[float], ys: List[float], labels: List[int], rotation: int):
@@ -426,6 +444,28 @@ class Stat_struct:
         self.week_sess_distrib = [0 for _ in range(7)]
         self.month_req_distrib = Counter()
         self.month_sess_distrib = Counter()
+
+    def _get_attr(self, name:str):
+        if name == "stats":
+            return {key : stat.json() for key, stat in self.stats.items()}
+        if name == "month_req_distrib":
+            return {dt.isoformat() : val for dt, val in self.month_req_distrib.items()}
+        if name == "month_sess_distrib":
+            return {dt.isoformat() : val for dt, val in self.month_sess_distrib.items()}
+        
+        return getattr(self, name, None)
+    
+    def _set_attr(self, name, data):
+        if name == "stats":
+            self.stats = {key : Ip_stats(stat, json=True) for key, stat in data.items()}
+        setattr(self, name, data)
+
+    def json(self):
+        return {slot : self._get_attr(slot) for slot in self.__slots__}
+    
+    def from_json(self, js):
+        for slot in self.__slots__:
+            self._set_attr(slot, js[slot])
 
 
 class Log_stats:
