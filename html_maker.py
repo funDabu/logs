@@ -19,13 +19,13 @@ class Html_maker:
             with open("html_template.html", "r") as f:
                 self.template = f.read() 
 
-        if css:
+        if css is not None:
             self.css = css
         else:
             with open("style.css", "r") as f:
                 self.css = f.read()
 
-        if js:
+        if js is not None:
             self.js = js
         else:
             with open("js.js", "r") as f:

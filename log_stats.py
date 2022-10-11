@@ -574,6 +574,9 @@ class Log_stats:
 
         if self.err_mess:
             timer.finish()
+        
+        # save current year in case it's not already saved
+        self._switch_years(self.current_year)
 
     def _add_entry(self, entry: Log_entry):
         dt = datetime.datetime.strptime(entry.time, TIME_FORMAT)
@@ -1265,3 +1268,48 @@ class Log_stats:
         plt.clf()
         plt.close(fig)
         plt.rcParams['figure.figsize'] = plt.rcParamsDefault['figure.figsize']
+
+    def print_histogram(self, file_name: str):
+        # For people only!!
+
+        template = "<html><head>{css} {js}</head>\n<body>\n{content}\n</body>\n</html>"
+        html = Html_maker(template, "", "")
+
+
+        session_data = []
+        request_data = []
+
+        for year in sorted(self.year_stats.keys()):
+            self._switch_years(year)
+            html.append(f"<h2>Year {year}</h2>")
+
+            for stat in self.people.stats.values():
+                session_data.append(stat.sessions_num)
+                request_data.append(stat.requests_num)
+
+            # sessions
+            html.append("<h3>Session histogram</h3>")
+
+            fig, ax = plt.subplots()
+            ax.hist(session_data, bins=150, log=True)
+
+            with io.StringIO() as f:
+                plt.savefig(f, format="svg")
+                html.append(f.getvalue())
+            plt.clf()
+            plt.close(fig)
+        
+            # requests
+            html.append("<h3>Requests histogram</h3>")
+
+            fig, ax = plt.subplots()
+            ax.hist(request_data, bins=300, log=True)
+
+            with io.StringIO() as f:
+                plt.savefig(f, format="svg")
+                html.append(f.getvalue())
+            plt.clf()
+
+        plt.close(fig)
+        with open(file_name, "w") as f:
+            f.write(html.html())

@@ -28,6 +28,12 @@ def main():
     parser.add_option("-l", "--load",
                   action="store", type="str", dest="i_file", default=None,
                   help="load the statisics from json, specify the name of the file")
+    parser.add_option("-H", "--histogram",
+                  action="store_true", dest="hist", default=False,
+                  help="makes html 'hist.html' with histograms")
+    parser.add_option("-c", "--clean",
+                  action="store_true", dest="clean", default=False,
+                  help="when no --year is given and --clean is set, then charts are not made. Good for use with --test or --histogram")
                   
 
 
@@ -51,18 +57,24 @@ def main():
                           options.tld_ss,
                           selected=False,
                           year=options.year)
-    else:
-        make_log_stats(stats, options.geoloc_ss, options.tld_ss, False)
-        if options.o_file is not None:
-            stats.save(options.o_file)
+    elif not options.clean:
+        make_log_stats(stats, options, selected=False)
+
+    if options.hist:
+        stats.print_histogram("hist.html")
+
+    if options.o_file is not None:
+        stats.save(options.o_file)
 
 
-def make_log_stats(log_stats: Log_stats, geoloc_ss: int, tld_ss: int, selected: bool):
+def make_log_stats(log_stats: Log_stats, options, selected: bool):
     make_pictures(log_stats)
+
+
 
     for year in sorted(log_stats.year_stats.keys()):
         with open(f"{year}.html", "w") as file:
-            log_stats.print_stats(file, geoloc_ss, tld_ss, selected, year)
+            log_stats.print_stats(file, options.geoloc_ss, options.tld_ss, selected, year)
     
     with open("logs_index.html", "w") as file:
         file.write("<h2>Overview</h2>\n")
