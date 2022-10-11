@@ -1,9 +1,9 @@
+from logging.config import valid_ident
 from typing import List, TextIO, Optional, Tuple, Dict, Set
 from collections import Counter
 import sys
 import socket
 import datetime
-from xmlrpc.client import DateTime
 import matplotlib.pyplot as plt
 import io
 from html_maker import Html_maker, make_table
@@ -11,6 +11,7 @@ import random
 import requests
 import time
 from log_parser import Log_entry, parse_log_entry
+import json
 
 
 """
@@ -329,9 +330,13 @@ class Ip_stats:
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "date")
 
-    def __init__(self, entry, json=False, bot_url=None) -> None:
+    def __init__(self, entry, bot_url=None, json=False) -> None:
         # when json is False entry is supposted to be Log_entry object
         # otherwise entry is dict 
+
+        if json:
+            self._from_json(entry)
+            return
 
         self.host_name = "Unresolved"
         self.geolocation = ""
@@ -418,7 +423,8 @@ class Ip_stats:
     def _set_attr(self, name, data):
         if name == "date":
             self.date = datetime.datetime.fromisoformat(data)
-        setattr(self, name, data)
+        else:
+            setattr(self, name, data)
 
     def _from_json(self, js):
         for slot in self.__slots__:
@@ -436,7 +442,11 @@ class Stat_struct:
                  "day_req_distrib", "week_req_distrib", "month_req_distrib",
                  "day_sess_distrib", "week_sess_distrib", "month_sess_distrib",)
 
-    def __init__(self):
+    def __init__(self, js:Optional[Dict]=None):
+        if js is not None:
+            self.from_json(js)
+            return 
+
         self.stats: Dict[str, Ip_stats] = {}
         self.day_req_distrib = [0 for _ in range(24)]
         self.day_sess_distrib = [0 for _ in range(24)]
@@ -449,16 +459,27 @@ class Stat_struct:
         if name == "stats":
             return {key : stat.json() for key, stat in self.stats.items()}
         if name == "month_req_distrib":
-            return {dt.isoformat() : val for dt, val in self.month_req_distrib.items()}
+            to_str = lambda x: f"{x[0]},{x[1]}"
+            return {to_str(key) : val for key, val in self.month_req_distrib.items()}
         if name == "month_sess_distrib":
-            return {dt.isoformat() : val for dt, val in self.month_sess_distrib.items()}
+            to_str = lambda x: f"{x[0]},{x[1]}"
+            return {to_str(key) : val for key, val in self.month_sess_distrib.items()}
         
         return getattr(self, name, None)
     
     def _set_attr(self, name, data):
         if name == "stats":
             self.stats = {key : Ip_stats(stat, json=True) for key, stat in data.items()}
-        setattr(self, name, data)
+        elif name == "month_req_distrib":
+            to_tuple = lambda x: tuple(map(int, x.split(",")))
+            self.month_req_distrib = Counter({to_tuple(key) : val
+                                              for key, val in data.items()})
+        elif name == "month_sess_distrib":
+            to_tuple = lambda x: tuple(map(int, x.split(",")))
+            self.month_sess_distrib = Counter({to_tuple(key) : val
+                                               for key, val in data.items()})
+        else:
+            setattr(self, name, data)
 
     def json(self):
         return {slot : self._get_attr(slot) for slot in self.__slots__}
@@ -477,10 +498,67 @@ class Log_stats:
         self.daily_data: Dict[datetime.date, Tuple[Set[str], int, int]] = {}
         # ^: date -> (unique_ips, requests_number, people_session_number)
         self.year_stats: Dict[int, Tuple(Stat_struct, Stat_struct)] = {}
+        # ^: year -> (bots, people)
         self.current_year = None
 
         if input:
             self.make_stats(input)
+
+    def _get_attr(self, name:str):
+        if name == "bots":
+            return self.bots.json()
+        if name == "people":
+            return self.people.json()
+
+        if name == "daily_data":
+            return {d.isoformat(): (list(ips), r, s)
+                        for d, (ips, r, s) in self.daily_data.items()}
+        
+        if name == "year_stats":
+            return {y : (b.json(), p.json()) for y, (b, p) in self.year_stats.items()}
+        
+        return getattr(self, name, None)
+    
+    def _set_attr(self, name, data):
+        if name == "bots":
+            self.bots = Stat_struct(data)
+        elif name == "people":
+            self.people = Stat_struct(data)
+        elif name == "daily_data":
+            self.daily_data = {datetime.date.fromisoformat(d): (set(ips), r, s)
+                                    for d, (ips, r, s) in data.items()}
+        elif name == "year_stats":
+            self.year_stats = {year: (Stat_struct(b), Stat_struct(p))
+                                for year, (b, p) in data.items()}
+        else:
+            setattr(self, name, data)
+    
+    def json(self):
+        return {key: self._get_attr(key) for key in self.__dict__.keys()}
+    
+    def from_json(self, js):
+        for key, data in js.items():
+            self._set_attr(key, data)
+
+    def save(self, f_name: str):
+        if self.err_mess:
+            time1 = Ez_timer("Saving stats")
+
+        with open(f_name, "w") as f:
+            json.dump(self.json(), f)
+        
+        if self.err_mess:
+            time1.finish()
+
+    def load(self, f_name: str):
+        if self.err_mess:
+            time1 = Ez_timer("Loading stats")
+
+        with open(f_name, "r") as f:
+            self.from_json(json.load(f))
+
+        if self.err_mess:
+            time1.finish()
 
     def make_stats(self, input: TextIO):
         if self.err_mess:
@@ -496,7 +574,6 @@ class Log_stats:
 
         if self.err_mess:
             timer.finish()
-
 
     def _add_entry(self, entry: Log_entry):
         dt = datetime.datetime.strptime(entry.time, TIME_FORMAT)

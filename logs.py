@@ -22,12 +22,22 @@ def main():
     parser.add_option("-y", "--year",
                   action="store", type="int", dest="year", default=0,
                   help="prints log statistics of given year to std.out")
+    parser.add_option("-s", "--save",
+                  action="store", type="str", dest="o_file", default=None,
+                  help="save the statisics as json, specify name of the file")
+    parser.add_option("-l", "--load",
+                  action="store", type="str", dest="i_file", default=None,
+                  help="load the statisics from json, specify the name of the file")
+                  
 
 
     options, _ = parser.parse_args()
     
     stats = Log_stats(err_mess=options.error)
-    stats.make_stats(sys.stdin)
+    if options.i_file is not None:
+        stats.load(options.i_file)
+    else:
+        stats.make_stats(sys.stdin)
 
     if options.test > 0:
         stats.test_geolocation(sys.stdout,
@@ -43,12 +53,14 @@ def main():
                           year=options.year)
     else:
         make_log_stats(stats, options.geoloc_ss, options.tld_ss, False)
+        if options.o_file is not None:
+            stats.save(options.o_file)
 
 
 def make_log_stats(log_stats: Log_stats, geoloc_ss: int, tld_ss: int, selected: bool):
     make_pictures(log_stats)
 
-    for year in log_stats.year_stats.keys():
+    for year in sorted(log_stats.year_stats.keys()):
         with open(f"{year}.html", "w") as file:
             log_stats.print_stats(file, geoloc_ss, tld_ss, selected, year)
     
