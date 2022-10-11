@@ -89,7 +89,7 @@ def draw_label(x: int,
     img.paste(label_img, (x, y))
 
 
-def day_data_to_month_data(data: Iterable[Tuple[int, int, str]])\
+def day_to_month_data(data: Iterable[Tuple[int, int, str]])\
         -> List[Tuple[int, int, str]]:
     month_data = []
 
@@ -114,7 +114,7 @@ def day_data_to_month_data(data: Iterable[Tuple[int, int, str]])\
     return month_data
 
 
-def make_both_pictures(stats: Union[Log_stats, str], load_json=False, output_json=""):
+def make_pictures(stats: Union[Log_stats, str], load_json=False, output_json=""):
     base_step = 2
 
     if load_json:
@@ -130,12 +130,17 @@ def make_both_pictures(stats: Union[Log_stats, str], load_json=False, output_jso
             map(lambda x: (base_step, x[1][1], x[0].isoformat()), data_objects))
         # DEBUG ^make it more readabel
         # print(data["day_requests"]) #DEBUG
-        data["month_requests"] = day_data_to_month_data(data["day_requests"])
+        data["month_requests"] = day_to_month_data(data["day_requests"])
 
         # unique IP count
         data["day_ips"] = list(
             map(lambda x: (base_step, len(x[1][0]), x[0].isoformat()), data_objects))
-        data["month_ips"] = day_data_to_month_data(data["day_ips"])
+        data["month_ips"] = day_to_month_data(data["day_ips"])
+
+        # human session count
+        data["day_sessions"] = list(
+            map(lambda x: (base_step, x[1][2], x[0].isoformat()), data_objects))
+        data["month_sessions"] = day_to_month_data(data["day_sessions"])
 
     # print(data) #DEBUG
 
@@ -147,6 +152,8 @@ def make_both_pictures(stats: Union[Log_stats, str], load_json=False, output_jso
                  base_step, True, "requests_overview.png")
     make_picture(data["day_ips"], data["month_ips"],
                  base_step, True, "unique_ip_overview.png") # set it back to False DEBUG!
+    make_picture(data["day_sessions"], data["month_sessions"],
+                 base_step, True, "sessions_overview.png")
 
 
 def get_day_max(day_data: List[Tuple[int, int, str]],
@@ -277,13 +284,13 @@ def pritify_month(month: str) -> str:
 def main():
     if len(sys.argv) == 3:
         if sys.argv[1] == "load":
-            make_both_pictures(sys.argv[2], True)
+            make_pictures(sys.argv[2], True)
         elif sys.argv[1] == "save":
             stats = Log_stats(sys.stdin, True)
-            make_both_pictures(stats, False, sys.argv[2])
+            make_pictures(stats, False, sys.argv[2])
     else:
         stats = Log_stats(sys.stdin, True)
-        make_both_pictures(stats)
+        make_pictures(stats)
 
 
 if __name__ == '__main__':
