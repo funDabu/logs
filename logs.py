@@ -46,11 +46,11 @@ def main():
         stats.make_stats(sys.stdin)
 
     if options.test > 0:
-        stats.test_geolocation(sys.stdout,
-                               options.geoloc_ss,
-                               options.tld_ss,
-                               selected=False,
-                               repetitions=options.test)
+        with open("_test.html", "w") as f:
+            stats.test_geolocation(f,
+                                   options.geoloc_ss,
+                                   selected=False,
+                                   repetitions=options.test)
     elif options.year > 0:
         stats.print_stats(sys.stdout,
                           options.geoloc_ss,

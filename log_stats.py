@@ -650,7 +650,6 @@ class Log_stats:
     def test_geolocation(self,
                          output: TextIO,
                          geoloc_sample_size=300,
-                         cctld_sample_size=300,
                          selected=True,
                          repetitions: int = 1,
                          year: int = None):
@@ -660,7 +659,6 @@ class Log_stats:
         html: Html_maker = Html_maker()
         self._test_geolocation(html,
                                geoloc_sample_size,
-                               cctld_sample_size,
                                selected=selected,
                                repetitions=repetitions)
 
@@ -961,10 +959,32 @@ class Log_stats:
                                 y_tick_lables=x_ticks_labels,
                                 left_margin=left_margin)
 
+    def _get_geolist_from_sample(self, sample: List[Ip_stats])\
+            -> List[Tuple[str,float]]:
+        # returns List of tuples (location, percent of that location in sample)
+        #   location is weighted by session count
+
+        geoloc = {}
+        val_sum = 0
+
+        for ip_stat in sample:
+            if not ip_stat.geolocation:
+                ip_stat.update_geolocation()
+
+            value = geoloc.get(ip_stat.geolocation, 0)
+            value += ip_stat.sessions_num  # weight the value by number of sessions
+            geoloc[ip_stat.geolocation] = value
+            val_sum += ip_stat.requests_num
+
+        geoloc = sorted(map(lambda x, s=val_sum: (x[0], 100 * x[1] / s),
+                                geoloc.items()),
+                            key=lambda x: x[1],
+                            reverse=True)
+        return geoloc
+
     def _test_geolocation(self,
                           html: Html_maker,
                           geoloc_sample_size: int,
-                          tld_sample_size: int,
                           repetitions: int = 5,
                           selected: bool = False):
 
@@ -972,13 +992,12 @@ class Log_stats:
         data: List[Ip_stats] = list(self.people.stats.values())
         samples: List[List[Ip_stats]] = []
         sample_size = min(len(data),
-                          max(geoloc_sample_size, tld_sample_size))
+                          geoloc_sample_size)
 
         for _ in range(repetitions):
             if len(data) > sample_size:
                 samples.append(random.sample(data, sample_size))
             else:
-                geoloc_sample_size = tld_sample_size = len(data)
                 samples.append(data)
 
         # geolocation
@@ -987,49 +1006,19 @@ class Log_stats:
         geoloc_stats = []
         for i, sample in enumerate(samples):
             timer2 = Ez_timer(f"geolocaion {i+1}", verbose=False)
-            geostat = {}
-
-            for ip_stat in sample[:geoloc_sample_size]:
-                if not ip_stat.geolocation:
-                    ip_stat.update_geolocation()
-                value = geostat.get(ip_stat.geolocation, 0)
-                geostat[ip_stat.geolocation] = value + (100 / sample_size)
-
-            geoloc_stats.append(geostat)
+            geoloc_stats.append(self._get_geolist_from_sample(sample))
             timer2.finish(self.err_mess)
 
         timer.finish(self.err_mess)
-
-        # TLD stats
-        timer = Ez_timer("TLD updates", verbose=self.err_mess)
-
-        tld_stats = []
-        for i, sample in enumerate(samples):
-            timer2 = Ez_timer(f"TLD update {i+1}", verbose=False)
-            tld_stat = {}
-
-            for ip_stat in sample[:tld_sample_size]:
-                if ip_stat.host_name == 'Unresolved':
-                    ip_stat.update_host_name()
-                tld = ip_stat.host_name.rsplit('.')[-1]
-                value = tld_stat.get(tld, 0)
-                tld_stat[tld] = value + (100 / sample_size)
-
-            tld_stats.append(tld_stat)
-            timer2.finish(self.err_mess)
-
-        if self.err_mess:
-            timer.finish()
 
         # Printing
         selected = "selected" if selected else ""
 
         html.append("<h3>Estimated locations</h3>\n<label>Select:</label>")
         button_names = [f"geoloc{i}" for i in range(1, repetitions + 1)]
-        button_names.extend(f"tld {i}" for i in range(1, repetitions + 1))
         uniq_classes = html.print_sel_buttons(
             button_names,
-            [["selectable", selected]]*(repetitions*2))
+            [["selectable", selected]]*repetitions)
 
         # print geolocation
         html.append(f'<div class="flex-align-start">')
@@ -1042,17 +1031,6 @@ class Log_stats:
                                       left_margin=True,
                                       max_size=20)
             html.append("</div>")
-        html.append("</div>")
-
-        # print tld
-        html.append(f'<div class="flex-align-start">')
-        for i in range(repetitions):
-            html.append(
-                f'<div class="selectable {selected} {uniq_classes[i+repetitions]}">')
-            self.print_countries_bars(html,
-                                      tld_stats[i],
-                                      "Top level domains",
-                                      max_size=20)
         html.append("</div>")
 
     def _print_countries_stats(self,
@@ -1078,25 +1056,7 @@ class Log_stats:
         if self.err_mess:
             timer = Ez_timer("geolocation")
 
-        geoloc_stats = {}
-        val_sum = 0
-
-        for ip_stat in sample[:geoloc_sample_size]:
-            if not ip_stat.geolocation:
-                ip_stat.update_geolocation()
-
-            value = geoloc_stats.get(ip_stat.geolocation, 0)
-            value += ip_stat.requests_num  # weight the value by number of requests
-            geoloc_stats[ip_stat.geolocation] = value
-            val_sum += ip_stat.requests_num
-
-        if self.err_mess:
-            timer.finish()
-
-        geoloc_stats = sorted(map(lambda x, s=val_sum: (x[0], 100 * x[1] / s),
-                                  geoloc_stats.items()),
-                              key=lambda x: x[1],
-                              reverse=True)
+        geoloc_stats = self._get_geolist_from_sample(sample)
 
         # TLD stats
         if self.err_mess:
