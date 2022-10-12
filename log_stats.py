@@ -627,7 +627,6 @@ class Log_stats:
     def print_stats(self,
                     output: TextIO,
                     geoloc_sample_size,
-                    cctld_sample_size,
                     selected=True,
                     year=None):
         if year is not None:
@@ -643,7 +642,7 @@ class Log_stats:
             timer.finish()
 
         self._print_countries_stats(
-            html, geoloc_sample_size, cctld_sample_size, selected)
+            html, geoloc_sample_size, selected)
 
         print(html.html(), file=output)
 
@@ -1035,22 +1034,23 @@ class Log_stats:
 
     def _print_countries_stats(self,
                                html: Html_maker,
-                               geoloc_sample_size: int,
-                               tld_sample_size: int,
+                               sample_size: int,
                                selected: bool = False):
         # now olnly for human users
+
+        if sample_size <= 0:
+            return
+
         data = self.people
 
         sample: List[Ip_stats] = list(data.stats.values())
         sample_size = min(len(sample),
-                          max(geoloc_sample_size, tld_sample_size))
-        if sample_size == 0:
-            return
+                          sample_size)
 
         if len(sample) > sample_size:
             sample = random.sample(sample, sample_size)
         else:
-            geoloc_sample_size = tld_sample_size = len(sample)
+            sample_size = len(sample)
 
         # geolocation
         if self.err_mess:
@@ -1058,107 +1058,43 @@ class Log_stats:
 
         geoloc_stats = self._get_geolist_from_sample(sample)
 
-        # TLD stats
-        if self.err_mess:
-            timer = Ez_timer("TLD update")
-
-        tld_stats = {}
-        val_sum = 0
-
-        for ip_stat in sample[:tld_sample_size]:
-            if ip_stat.host_name == 'Unresolved':
-                ip_stat.update_host_name()
-            tld = ip_stat.host_name.rsplit('.')[-1]
-            value = tld_stats.get(tld, 0)
-            value += ip_stat.requests_num
-            tld_stats[tld] = value
-            val_sum += ip_stat.requests_num
-
         if self.err_mess:
             timer.finish()
 
-        tld_stats = sorted(map(lambda x, s=val_sum: (x[0], 100 * x[1] / s),
-                               tld_stats.items()),
-                           key=lambda x: x[1],
-                           reverse=True)
-
-        cctld_stats = {}
-        val_sum = 0
-
-        for ip_stat in sample[:tld_sample_size]:
-
-            tld = ip_stat.host_name.rsplit('.')[-1]
-            if tld in CCTLDS:
-                country = CCTLDS[tld]
-                value = cctld_stats.get(country, 0)
-                value += ip_stat.requests_num
-                cctld_stats[country] = value
-                val_sum += ip_stat.requests_num
-
-        cctld_stats = sorted(map(lambda x, s=val_sum: (x[0], 100 * x[1] / s),
-                                 cctld_stats.items()),
-                             key=lambda x: x[1],
-                             reverse=True)
-
+        # making html
         selected = "selected" if selected else ""
 
         html.append("<h3>Estimated locations</h3>\n<label>Select:</label>")
         uniq_classes = html.print_sel_buttons(
-            ["Geoloc table", "Geoloc graph", " TLDs table", "TLDs", "ccTLD"],
-            [[selected]]*5)
+            ["Geoloc table", "Geoloc graph"],
+            [[selected]]*2)
 
-        if geoloc_sample_size > 0:
-            # geolocation table
-            def content_iter(data: List[Tuple[str, float]]):
-                rank = 1
-                for country, value in data:
-                    yield [rank, country, round(value, 2)]
-                    rank += 1
+        # geolocation table
+        def content_iter(data: List[Tuple[str, float]]):
+            rank = 1
+            for country, value in data:
+                yield [rank, country, round(value, 2)]
+                rank += 1
 
-            html.append('<div class="flex-align-start">')
-            html.append(
-                f'<div class="selectable {selected} {uniq_classes[0]} flex-col-center">')
-            html.append(make_table("Most frequent geolocations",
-                                   ["Rank", "Geolocation", "Percetns"],
-                                   content_iter(geoloc_stats)))
-            html.append('<a href="http://www.geoplugin.com/geolocation/">IP Geolocation</a>'
-                        ' by <a href="http://www.geoplugin.com">geoPlugin</a>\n</div>')
+        html.append('<div class="flex-align-start">')
+        html.append(
+            f'<div class="selectable {selected} {uniq_classes[0]} flex-col-center">')
+        html.append(make_table("Most frequent geolocations",
+                                ["Rank", "Geolocation", "Percetns"],
+                                content_iter(geoloc_stats)))
+        html.append('<a href="http://www.geoplugin.com/geolocation/">IP Geolocation</a>'
+                    ' by <a href="http://www.geoplugin.com">geoPlugin</a>\n</div>')
 
-            # geolocation graph
-            html.append(
-                f'<div class="selectable {selected} {uniq_classes[1]} flex-col-center">')
-            self.print_countries_bars(html,
-                                      geoloc_stats,
-                                      "Geolocation",
-                                      left_margin=True,
-                                      max_size=10)
-            html.append('<a href="http://www.geoplugin.com/geolocation/">IP Geolocation</a>'
-                        ' by <a href="http://www.geoplugin.com">geoPlugin</a>\n</div>')
-
-        if tld_sample_size > 0:
-            # TLD table
-            html.append(make_table("Most frequent top level domains",
-                                   ["Rank", "TLD", "Percetns"],
-                                   content_iter(tld_stats),
-                                   classes=["selectable", selected, uniq_classes[2]]))
-
-            # top level domains graphs
-            html.append(
-                f'<div class="selectable {selected} {uniq_classes[3]}">')
-            self.print_countries_bars(html,
-                                      tld_stats,
-                                      "Top level domains",
-                                      max_size=10)
-            # ccTLD graph
-            html.append(
-                f'</div>\n<div class="selectable {selected} {uniq_classes[4]}">')
-            self.print_countries_bars(html,
-                                      cctld_stats,
-                                      "Country code top level domains",
-                                      left_margin=True,
-                                      max_size=10)
-            html.append('</div>')
-
+        # geolocation graph
+        html.append(
+            f'<div class="selectable {selected} {uniq_classes[1]} flex-col-center">')
+        self.print_countries_bars(html,
+                                    geoloc_stats,
+                                    "Geolocation",
+                                    left_margin=True,
+                                    max_size=10)
+        html.append('<a href="http://www.geoplugin.com/geolocation/">IP Geolocation</a>'
+                    ' by <a href="http://www.geoplugin.com">geoPlugin</a>\n</div>')
         html.append('</div>')
 
     def print_countries_bars(self,

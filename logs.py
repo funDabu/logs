@@ -54,7 +54,6 @@ def main():
     elif options.year > 0:
         stats.print_stats(sys.stdout,
                           options.geoloc_ss,
-                          options.tld_ss,
                           selected=False,
                           year=options.year)
     elif not options.clean:
@@ -74,12 +73,14 @@ def make_log_stats(log_stats: Log_stats, options, selected: bool):
 
     for year in sorted(log_stats.year_stats.keys()):
         with open(f"{year}.html", "w") as file:
-            log_stats.print_stats(file, options.geoloc_ss, options.tld_ss, selected, year)
+            log_stats.print_stats(file, options.geoloc_ss, selected, year)
     
     with open("logs_index.html", "w") as file:
         file.write("<h2>Overview</h2>\n")
         file.write("<h3>Requests</h3>\n")
         file.write("<img src='requests_overview.png'>\n")
+        file.write("<h3>Sessions</h3>\n")
+        file.write("<img src='sessions_overview.png'>\n")
         file.write("<h3>Unique IP addresses</h3>\n")
         file.write("<img src='unique_ip_overview.png'>\n")
 
