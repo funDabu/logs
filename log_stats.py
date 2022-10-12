@@ -973,7 +973,7 @@ class Log_stats:
             value = geoloc.get(ip_stat.geolocation, 0)
             value += ip_stat.sessions_num  # weight the value by number of sessions
             geoloc[ip_stat.geolocation] = value
-            val_sum += ip_stat.requests_num
+            val_sum += ip_stat.sessions_num
 
         geoloc = sorted(map(lambda x, s=val_sum: (x[0], 100 * x[1] / s),
                                 geoloc.items()),
