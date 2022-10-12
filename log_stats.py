@@ -528,8 +528,8 @@ class Log_stats:
             self.daily_data = {datetime.date.fromisoformat(d): (set(ips), r, s)
                                     for d, (ips, r, s) in data.items()}
         elif name == "year_stats":
-            self.year_stats = {year: (Stat_struct(b), Stat_struct(p))
-                                for year, (b, p) in data.items()}
+            self.year_stats = {int(year): (Stat_struct(b), Stat_struct(p))
+                                    for year, (b, p) in data.items()}
         else:
             setattr(self, name, data)
     
@@ -555,7 +555,7 @@ class Log_stats:
             time1 = Ez_timer("Loading stats")
 
         with open(f_name, "r") as f:
-            self.from_json(json.load(f))
+            self.from_json(json.load(f, ))
 
         if self.err_mess:
             time1.finish()
