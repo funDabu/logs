@@ -1,4 +1,4 @@
-from logging.config import valid_ident
+from cgitb import small
 from typing import List, TextIO, Optional, Tuple, Dict, Set
 from collections import Counter
 import sys
@@ -25,267 +25,7 @@ TIME_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
 MONTHS = ["Error", "Jan", "Feb", "Mar", "Apr", "May",
           "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 DAYS = ["Mon", "Tue", "Wed", "Thr", "Fri", "Sat", "Sun"]
-CCTLDS = {  # coutry code top level domains
-    "ac": "Ascension Island",
-    "ad": "Andorra",
-    "ae": "United Arab Emirates",
-    "af": "Afghanistan",
-    "ag": "Antigua and Barbuda",
-    "ai": "Anguilla",
-    "al": "Albania",
-    "am": "Armenia",
-    "an": "Netherlands Antilles ",
-    "ao": "Angola",
-    "aq": "Antarctic",
-    "ar": "Argentina",
-    "as": "American Samoa",
-    "at": "Austria",
-    "au": "Australia",
-    "aw": "Aruba",
-    "ax": "Åland Islands ",
-    "az": "Azerbaijan",
-    "ba": "Bosnia and Herzegovina",
-    "bb": "Barbados",
-    "bd": "Bangladesh",
-    "be": "Belgium",
-    "bf": "Burkina Faso",
-    "bg": "Bulgaria",
-    "bh": "Bahrain",
-    "bi": "Burundi",
-    "bj": "Benin",
-    "bl": "Saint",
-    "bm": "Bermuda",
-    "bn": "Brunei",
-    "bo": "Bolivia",
-    "br": "Brazil",
-    "bq": "Bonaire",
-    "bs": "Bahamas",
-    "bt": "Bhutan",
-    "bv": "Bouvet Island ",
-    "bw": "Botswana",
-    "by": "Belarus",
-    "bz": "Belize",
-    "ca": "Canada",
-    "cc": "Cocos Islands",
-    "cd": "Democratic Republic of the Congo",
-    "cf": "Central African Republic",
-    "cg": "Republic of the Congo",
-    "ch": "Switzerland",
-    "ci": "Côte d",
-    "ck": "Cook Islands",
-    "cl": "Chile",
-    "cm": "Cameroon",
-    "cn": "China",
-    "co": "Colombia",
-    "cr": "Costa Rica",
-    "cs": "Czechoslovakia ",
-    "cu": "Cuba",
-    "cv": "Cape Verde",
-    "cw": "Curaçao",
-    "cx": "Christmas Island",
-    "cy": "Cyprus",
-    "cz": "Czech Republic",
-    "dd": "German Democratic Republic ",
-    "de": "Germany",
-    "dj": "Djibuti",
-    "dk": "Denmark",
-    "dm": "Dominica",
-    "do": "Dominican Republic",
-    "dz": "Algeria",
-    "ec": "Ecuador",
-    "ee": "Estonia",
-    "eg": "Egypt",
-    "eh": "Western Sahara ",
-    "er": "Eritrea",
-    "es": "Spain",
-    "et": "Ethiopia",
-    "eu": "European Union",
-    "fi": "Finland",
-    "fj": "Fiji",
-    "fk": "Falkland Islands",
-    "fm": "Micronesia",
-    "fo": "Faroe",
-    "fr": "France",
-    "ga": "Gabon",
-    "gb": "United Kingdom ",
-    "gd": "Grenada",
-    "ge": "Georgia",
-    "gf": "French Guiana",
-    "gg": "Guernsey",
-    "gh": "Ghana",
-    "gi": "Gibraltar",
-    "gl": "Greenland",
-    "gm": "Gambia",
-    "gn": "Guinea",
-    "gp": "Guadeloupe",
-    "gq": "Equatorial Guinea",
-    "gr": "Greece",
-    "gs": "South Georgia and the South Sandwich Islands",
-    "gt": "Guatemala",
-    "gu": "Guam",
-    "gw": "Guinea",
-    "gy": "Guyana",
-    "hk": "Hong Kong",
-    "hm": "Heard Island and McDonald Islands",
-    "hn": "Honduras",
-    "hr": "Croatia",
-    "ht": "Haiti",
-    "hu": "Hungary",
-    "id": "Indonesia",
-    "ie": "Ireland",
-    "il": "Israel",
-    "im": "Isle of Man",
-    "in": "India",
-    "io": "British Indian Ocean Territory",
-    "iq": "Iraq",
-    "ir": "Iran",
-    "is": "Iceland",
-    "it": "Italy",
-    "je": "Jersey",
-    "jm": "Jamaica",
-    "jo": "Jordan",
-    "jp": "Japan",
-    "ke": "Kenya",
-    "kg": "Kyrgyzstan",
-    "kh": "Cambodia",
-    "ki": "Kiribati",
-    "km": "Comoros",
-    "kn": "St. Kitts and Nevis",
-    "kp": "North Korea",
-    "kr": "South Korea",
-    "kw": "Kuwait",
-    "ky": "Cayman Islands",
-    "kz": "Kazakhstan",
-    "la": "Laos",
-    "lb": "Lebanon",
-    "lc": "St. Lucia",
-    "li": "Liechtenstein",
-    "lk": "Sri Lanka",
-    "lr": "Liberia",
-    "ls": "Lesotho",
-    "lt": "Lithuania",
-    "lu": "Luxembourg",
-    "lv": "Latvia",
-    "ly": "Libya",
-    "ma": "Marocco",
-    "mc": "Monaco",
-    "md": "Moldova",
-    "me": "Montenegro",
-    "mf": "Saint Martin",
-    "mg": "Madagascar",
-    "mh": "Marshall Islands",
-    "mk": "Macedonia",
-    "ml": "Mali",
-    "mm": "Myanmar",
-    "mn": "Mongolia",
-    "mo": "Macau",
-    "mp": "Northern Mariana Islands",
-    "mq": "Martinique",
-    "mr": "Mauritania",
-    "ms": "Montserrat",
-    "mt": "Malta",
-    "mu": "Mauritius",
-    "mv": "Maldives",
-    "mw": "Malawi",
-    "mx": "Mexico",
-    "my": "Malaysia",
-    "mz": "Mozambique",
-    "na": "Namibia",
-    "nc": "New Caledonia",
-    "ne": "Niger",
-    "nf": "Norfolk Island",
-    "ng": "Nigeria",
-    "ni": "Nicaragua",
-    "nl": "Netherlands",
-    "no": "Norway",
-    "np": "Nepal",
-    "nr": "Nauru",
-    "nu": "Niue",
-    "nz": "New Zealand",
-    "om": "Oman",
-    "pa": "Panama",
-    "pe": "Peru",
-    "pf": "French Polynesia",
-    "pg": "Papua New Guinea",
-    "ph": "Philippines",
-    "pk": "Pakistan",
-    "pl": "Poland",
-    "pm": "Saint Pierre and Miquelon",
-    "pn": "Pitcairn Islands",
-    "pr": "Puerto Rico",
-    "ps": "Palestine",
-    "pt": "Portugal",
-    "pw": "Palau",
-    "py": "Paraguay",
-    "qa": "Qatar",
-    "re": "Réunion",
-    "ro": "Romania",
-    "rs": "Serbia",
-    "ru": "Russia",
-    "rw": "Rwanda",
-    "sa": "Saudi Arabia",
-    "sb": "Solomon Islands",
-    "sc": "Seychelles",
-    "sd": "Sudan",
-    "se": "Sweden",
-    "sg": "Singapore",
-    "sh": "St. Helena",
-    "si": "Slovenia",
-    "sj": "Svalbard and Jan Mayen ",
-    "sk": "Slovakia",
-    "sl": "Sierra Leone",
-    "sm": "San Marino",
-    "sn": "Senegal",
-    "so": "Somalia",
-    "sr": "Suriname",
-    "ss": "South Sudan",
-    "st": "São Tomé and Príncipe",
-    "su": "Soviet Union ",
-    "sv": "El Salvador",
-    "sx": "Sint Maarten",
-    "sy": "Syria",
-    "sz": "Swaziland",
-    "tc": "Turks and Caicos Islands",
-    "td": "Chad",
-    "tf": "French Southern and Antarctic Lands",
-    "tg": "Togo",
-    "th": "Thailand",
-    "tj": "Tajikistan",
-    "tk": "Tokelau",
-    "tl": "Timor",
-    "tm": "Turkmenistan",
-    "tn": "Tunisia",
-    "to": "Tonga",
-    "tp": "Timor",
-    "tr": "Turkey",
-    "tt": "Trinidad and Tobago",
-    "tv": "Tuvalu",
-    "tw": "Taiwan",
-    "tz": "Tanzania",
-    "ua": "Ukraine",
-    "ug": "Uganda",
-    "uk": "United Kingdom",
-    "um": "United States Minor Outlying Islands ",
-    "us": "United States",
-    "uy": "Uruguay",
-    "uz": "Uzbekistan",
-    "va": "Vatican City",
-    "vc": "St. Vincent and the Grenadines",
-    "ve": "Venezuela",
-    "vg": "Britische Virgin Islands",
-    "vi": "United States Virgin Islands",
-    "vn": "Vietnam",
-    "vu": "Vanuatu",
-    "wf": "Wallis and Futuna ",
-    "ws": "Samoa",
-    "ye": "Yemen",
-    "yt": "Mayotte ",
-    "yu": "Yugoslavia ",
-    "za": "South Africa",
-    "zm": "Zambia",
-    "zr": "Zaire ",
-    "zw": "Zimbabwe",
-}
+
 
 """
 ========== EASY TIMER ==========
@@ -555,7 +295,7 @@ class Log_stats:
             time1 = Ez_timer("Loading stats")
 
         with open(f_name, "r") as f:
-            self.from_json(json.load(f, ))
+            self.from_json(json.load(f))
 
         if self.err_mess:
             time1.finish()
@@ -967,7 +707,7 @@ class Log_stats:
         val_sum = 0
 
         for ip_stat in sample:
-            if not ip_stat.geolocation:
+            if ip_stat.geolocation in ["", "Unknown", " "]:
                 ip_stat.update_geolocation()
 
             value = geoloc.get(ip_stat.geolocation, 0)
@@ -988,7 +728,10 @@ class Log_stats:
                           selected: bool = False):
 
         # now olnly for human users
-        data: List[Ip_stats] = list(self.people.stats.values())
+        def filter_f(stat: Ip_stats) -> bool:
+            return stat.sessions_num <= 50
+        data: List[Ip_stats] = list(filter(filter_f, self.people.stats.values()))
+
         samples: List[List[Ip_stats]] = []
         sample_size = min(len(data),
                           geoloc_sample_size)
@@ -1168,8 +911,8 @@ class Log_stats:
     def print_histogram(self, file_name: str):
         # For people only!!
 
-        template = "<html><head>{css} {js}</head>\n<body>\n{content}\n</body>\n</html>"
-        html = Html_maker(template, "", "")
+        template = "<html><head><style>{css}</style> {js}</head>\n<body>\n{content}\n</body>\n</html>"
+        html = Html_maker(template, None, "")
 
 
         session_data = []
@@ -1185,27 +928,105 @@ class Log_stats:
 
             # sessions
             html.append("<h3>Session histogram</h3>")
+            s_delims = [1, 2, 5, 10, 50, 100, 1000]
+            s_bins = 150
 
-            fig, ax = plt.subplots()
-            ax.hist(session_data, bins=150, log=True)
+            _, ax = plt.subplots()
+            # ax.set_xticks(sorted(set([1000*i for i in range(7)] + s_delims)))
+            ax.hist(session_data, bins=s_bins, log=True)
 
             with io.StringIO() as f:
                 plt.savefig(f, format="svg")
                 html.append(f.getvalue())
             plt.clf()
-            plt.close(fig)
+
+            _, ax = plt.subplots()
+            less_than_100 = self.splited_data_info(session_data, [100])[0]
+            ax.hist(less_than_100, bins=s_bins, log=True)
+
+            with io.StringIO() as f:
+                plt.savefig(f, format="svg")
+                html.append(f.getvalue())
+            plt.clf()
+
+            self.splited_data_info(session_data, s_delims, html)
         
             # requests
             html.append("<h3>Requests histogram</h3>")
+            r_delims = [1, 2, 5, 10, 50, 100, 1000, 10000]
+            r_bins = 300
 
-            fig, ax = plt.subplots()
-            ax.hist(request_data, bins=300, log=True)
+            _, ax = plt.subplots()
+            # ax.set_xticks(sorted(set([50000*i for i in range(5)] + r_delims)))
+            ax.hist(request_data, bins=r_bins, log=True)
 
             with io.StringIO() as f:
                 plt.savefig(f, format="svg")
                 html.append(f.getvalue())
             plt.clf()
 
-        plt.close(fig)
+            _, ax = plt.subplots()
+            less_than_500 = self.splited_data_info(request_data, [500])[0]
+            ax.hist(less_than_500, bins=s_bins, log=True)
+
+            with io.StringIO() as f:
+                plt.savefig(f, format="svg")
+                html.append(f.getvalue())
+            plt.clf()
+
+            self.splited_data_info(request_data, r_delims, html)
+
+        plt.close('all')
+
         with open(file_name, "w") as f:
             f.write(html.html())
+
+    def splited_data_info(self, 
+                          data: List[int], 
+                          delims: List[int], 
+                          html: Optional[Html_maker]=None, 
+                          data_name="Data") -> List[List[int]] : 
+        # splits values in data into categories: i-th category contains values, such that
+        #   delims[i-1] <= values < delims[i], 0th categoty is min val <= values < delims[0],
+        #   last category is delims[-1] <= values <= max val
+        # if html is given appends a small table about the splitted data
+
+        categories = [ [] for _ in range(len(delims) + 1) ]
+        categories_sums = [ 0 for _ in range(len(delims) + 1) ]
+
+        for val in data:
+            for i in range(len(delims)):
+
+                if val < delims[i]:
+                    categories[i].append(val)
+                    categories_sums[i] += val
+                    break
+            else:
+                categories[-1].append(val)
+                categories_sums[-1] += val
+
+
+        if html is None:
+            return categories
+
+        tot = sum(categories_sums)
+
+        content = [ 
+            [f"Less than {delims[i]}", categories_sums[i],
+             round(100*categories_sums[i]/tot, 1), len(categories[i]),
+             round(100*len(categories[i])/len(data), 1)] 
+                for i in range(len(delims))
+        ]
+        content.append(
+            [f"Above {delims[-1]}", categories_sums[-1],
+             round(100*categories_sums[-1]/tot, 1), len(categories[-1]),
+             round(100*len(categories[-1])/len(data), 1)] 
+        )
+        content.append(
+            ["Total", tot, 100 , len(data), 100] 
+        )
+        
+        html.append(make_table(f"{data_name} splited",
+                               ["Category", "Sum", "Sum [%]", "Unique IPs", "Unique IPs [%]"],
+                               content))
+        return categories

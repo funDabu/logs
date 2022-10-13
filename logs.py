@@ -60,7 +60,7 @@ def main():
         make_log_stats(stats, options, selected=False)
 
     if options.hist:
-        stats.print_histogram("hist.html")
+        stats.print_histogram("_hist.html")
 
     if options.o_file is not None:
         stats.save(options.o_file)
