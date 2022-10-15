@@ -65,7 +65,7 @@ class Log_entry:
     def get_bot_url(self) -> str:
         # if "user agent" field of the log entry doesn't contain
         # bot's url, return empty string
-        match = re.search(r"(http\S+?)\)", self.user_agent)
+        match = re.search(r"(http\S+?)[);]", self.user_agent)
         if match is None:
             return ""
         return match.group(1)

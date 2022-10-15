@@ -473,12 +473,48 @@ class Log_stats:
                                    reverse=True)
         return (req_sorted_stats, sess_sorted_stats)
 
+
+# TODO: prepsat na jeden
+    def _people_iter(self, data: List[Ip_stats], n: int, host_name=True):
+        i = 0
+        n = min(n, len(data))
+        while i < n:
+            ip_stat = data[i]
+            if host_name:
+                ip_stat.update_host_name()
+            if not ip_stat.geolocation:
+                ip_stat.update_geolocation()
+            yield [f"{i + 1}",
+                    ip_stat.ip_addr,
+                    ip_stat.host_name,
+                    ip_stat.geolocation,
+                    ip_stat.requests_num,
+                    ip_stat.sessions_num
+                    ]
+            i += 1
+    
+    def _bots_iter(data: List[Ip_stats], n: int, host_name=True):
+        i = 0
+        n = min(n, len(data))
+        while i < n:
+            ip_stat = data[i]
+            if host_name:
+                ip_stat.update_host_name()
+            yield [f"{i + 1}",
+                    ip_stat.bot_url,
+                    ip_stat.host_name,
+                    ip_stat.requests_num,
+                    ip_stat.sessions_num
+                    ]
+            i += 1
+
     def _print_most_frequent(self,
                              html: Html_maker,
                              req_sorted_stats: List[Ip_stats],
                              sess_sorted_stats: List[Ip_stats],
                              bots,
-                             selected=""):
+                             selected="",
+                             host_name=True):
 
         html.append('<h3>Most frequent</h3>\n<label>Select:</label>')
 
@@ -490,50 +526,22 @@ class Log_stats:
             group_name = "bots"
             header = ["Rank", "Bot's url", "Host name",
                       "Requests count", "Sessions count"]
-
-            def content_iter(data: List[Ip_stats], n: int):
-                i = 0
-                n = min(n, len(data))
-                while i < n:
-                    ip_stat = data[i]
-                    ip_stat.update_host_name()
-                    yield [f"{i + 1}",
-                           ip_stat.bot_url,
-                           ip_stat.host_name,
-                           ip_stat.requests_num,
-                           ip_stat.sessions_num
-                           ]
-                    i += 1
+            content_iter = self._bots_iter
         else:
             group_name = "human users"
             header = ["Rank", "IP address", "Host name",
                       "Geolocation", "Requests count", "Sessions count"]
+            content_iter = self._people_iter
 
-            def content_iter(data: List[Ip_stats], n: int):
-                i = 0
-                n = min(n, len(data))
-                while i < n:
-                    ip_stat = data[i]
-                    ip_stat.update_host_name()
-                    if not ip_stat.geolocation:
-                        ip_stat.update_geolocation()
-                    yield [f"{i + 1}",
-                           ip_stat.ip_addr,
-                           ip_stat.host_name,
-                           ip_stat.geolocation,
-                           ip_stat.requests_num,
-                           ip_stat.sessions_num
-                           ]
-                    i += 1
         html.append(make_table(f"Most frequent {group_name} by number of sessions",
                                header,
-                               content_iter(sess_sorted_stats, 20),
+                               content_iter(sess_sorted_stats, 20, host_name=host_name),
                                None,
                                ["selectable", selected, uniq_classes[0]]))
 
         html.append(make_table(f"Most frequent {group_name} by number of requests",
                                header,
-                               content_iter(req_sorted_stats, 20),
+                               content_iter(req_sorted_stats, 20, host_name=host_name),
                                None,
                                ["selectable", selected, uniq_classes[1]]))
         html.append("</div>")
@@ -911,20 +919,21 @@ class Log_stats:
     def print_histogram(self, file_name: str):
         # For people only!!
 
-        template = "<html><head><style>{css}</style> {js}</head>\n<body>\n{content}\n</body>\n</html>"
-        html = Html_maker(template, None, "")
+        template = "<html><head><style>{css}</style> <script>{js}</script></head>\n<body>\n{content}\n</body>\n</html>"
+        html = Html_maker(template)
 
-
-        session_data = []
-        request_data = []
 
         for year in sorted(self.year_stats.keys()):
+            session_data = []
+            request_data = []
             self._switch_years(year)
-            html.append(f"<h2>Year {year}</h2>")
 
-            for stat in self.people.stats.values():
+            stats = self.people.stats.values()
+            for stat in stats:
                 session_data.append(stat.sessions_num)
                 request_data.append(stat.requests_num)
+
+            html.append(f"<h2>Year {year}</h2>")
 
             # sessions
             html.append("<h3>Session histogram</h3>")
@@ -941,8 +950,8 @@ class Log_stats:
             plt.clf()
 
             _, ax = plt.subplots()
-            less_than_100 = self.splited_data_info(session_data, [100])[0]
-            ax.hist(less_than_100, bins=s_bins, log=True)
+            sess_lesser_data = self.splited_data_info(session_data, [200])[0]
+            ax.hist(sess_lesser_data, bins=s_bins, log=True)
 
             with io.StringIO() as f:
                 plt.savefig(f, format="svg")
@@ -950,6 +959,8 @@ class Log_stats:
             plt.clf()
 
             self.splited_data_info(session_data, s_delims, html)
+
+
         
             # requests
             html.append("<h3>Requests histogram</h3>")
@@ -966,8 +977,8 @@ class Log_stats:
             plt.clf()
 
             _, ax = plt.subplots()
-            less_than_500 = self.splited_data_info(request_data, [500])[0]
-            ax.hist(less_than_500, bins=s_bins, log=True)
+            req_lesser_data = self.splited_data_info(request_data, [600])[0]
+            ax.hist(req_lesser_data, bins=s_bins, log=True)
 
             with io.StringIO() as f:
                 plt.savefig(f, format="svg")
@@ -976,7 +987,18 @@ class Log_stats:
 
             self.splited_data_info(request_data, r_delims, html)
 
+            # top users
+            self._print_most_frequent(html,
+                                        sorted(stats, key=lambda x: x.requests_num, reverse=True),
+                                        sorted(stats, key=lambda x: x.sessions_num, reverse=True),
+                                        bots=False,
+                                        selected="selected",
+                                        host_name=False
+                                        )
+
         plt.close('all')
+
+        
 
         with open(file_name, "w") as f:
             f.write(html.html())

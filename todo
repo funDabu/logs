@@ -1,0 +1,9 @@
+- opravit rozlisovani botu - viz tabulka top stahovacu
+- zprovoznit load na athene
+- pridat tabulku outliers do picture_overview
+- ?? půměrná a maximmální doba trvání session pro stahovače ??
+- promyslet formáty dat
+- osamostatnit print stats
+- ukládání do SQLite
+- konfigurák na boty a CGI script
+- mrknout jak funguje chron
