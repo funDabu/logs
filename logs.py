@@ -33,8 +33,12 @@ def main():
                   help="makes html 'hist.html' with histograms")
     parser.add_option("-c", "--clean",
                   action="store_true", dest="clean", default=False,
-                  help="when no --year is given and --clean is set, then charts are not made. Good for use with --test or --histogram")
-                  
+                  help="when no --year is given and --clean is set, "
+                       "then charts are not made. Good for use with --test or --histogram")
+    parser.add_option("-C", "--config",
+                  action="store", type="str", dest="config_file", default=None,
+                  help="specify the name of configuration file, "
+                       "ip addresses in config file will be calsified as bots")              
 
 
     options, _ = parser.parse_args()
