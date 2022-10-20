@@ -1,14 +1,18 @@
-from typing import List, Optional
+from ast import Call
+from typing import List, Optional, Callable
 import re
+from unittest import TestSuite
 
-import sys
+
+LOG_ENTRY_REGEX = r'^([0-9.]+?) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+?) "(.*?[^\\])" "(.*?[^\\])"'
+BOT_URL_REGEX = r"(http\S+?)[);]"
 
 
-def parse_log_entry(entry: str, log_entry: Optional["Log_entry"] = None):
+def parse_log_entry(entry: str) -> "Log_entry":
     end = None
     skip = False
     growing = []
-    result = log_entry if log_entry else Log_entry()
+    result = Log_entry()
     i = 0
 
     for ch in entry:
@@ -65,32 +69,101 @@ class Log_entry:
     def get_bot_url(self) -> str:
         # if "user agent" field of the log entry doesn't contain
         # bot's url, return empty string
-        match = re.search(r"(http\S+?)[);]", self.user_agent)
+        match = re.search(BOT_URL_REGEX, self.user_agent)
         if match is None:
             return ""
         return match.group(1)
 
 
-def main():
+def parse_with_regex(line: str, re_prog: re.Pattern) -> Log_entry:
+    result = Log_entry()
+    match = re_prog.search(line)
+
+    if match is None:
+        return result
     
+    result.length = match.lastindex
+    for i in range(match.lastindex):
+        setattr(result, result.__slots__[i], match.group(i+1))
+    
+    return result
+
+
+class Log_parser:
+    def __init__(self):
+        self.re_prog_entry = re.compile(LOG_ENTRY_REGEX)
+        self.re_prog_bot_url = re.compile(BOT_URL_REGEX)
+
+    def parse_with_regex(self, line:str):
+        return parse_with_regex(line, self.re_prog_entry)
+
+    #TODO: add is_bot method
+
+    def parse(self,
+              input_path:str, 
+              buffer_size: int = 1000,
+              parse_with_re: bool = False):
+        
+        buffer = []
+        i = 0
+        parse_func: Callable[[str], Log_entry] =\
+            self.parse_with_regex if parse_with_re else parse_log_entry
+
+        with open(input_path, "r") as f:
+            for line in f:
+                buffer.append(parse_func(line))
+                i += 1
+                if i == buffer_size:
+                    yield buffer
+                    buffer = []
+                    i = 0
+            
+        if i > 0:
+            yield buffer
+
+
+#######################
+##       TESTS       ##
+#######################
+        
+def main():
+    test_re_parse()
+    # test_my_parse()
+
+
+def check_entry_length(entry: Log_entry, line: str, counter:int, output):
+    if entry.length < 9:
+        
+        print(f"Error no.{counter}", file=output)
+        counter += 1
+        print("Original log entry:", line, file=output)
+        print("Parsed entry:", entry, file=output)
+        print("", file=output)
+
+def test_parse(func: Callable[[str], Log_entry]):
     import time
     import sys 
 
-    counter = 1
+    i = 1
     time1 = time.time()
-    print("Test has just started", file=sys.stderr)
+    print("Test has started", file=sys.stderr)
 
     for line in sys.stdin:
-        entry = parse_log_entry(line)
-        if entry.length < 9:
-            print(f"Error no.{counter}", file=sys.stderr)
-            counter += 1
-            print("Original log entry:", line, file=sys.stderr)
-            print("Parsed entry:", entry, file=sys.stderr)
-            print("", file=sys.stderr)
+        entry = func(line)
+        check_entry_length(entry, line, i, sys.stderr)
+        i += 1
 
-    print(f"Test has ended, took {round(time.time() - time1, 1)} sec", file=sys.stderr)  
+    print(f"Test has ended, took {round(time.time() - time1, 1)} sec", file=sys.stderr)
 
+
+def test_my_parse():
+    test_parse(parse_log_entry)
+
+
+def test_re_parse():
+    re_prog_entry = re.compile(LOG_ENTRY_REGEX)
+    test_parse(lambda line: parse_with_regex(line, re_prog_entry))
+      
 
 if __name__ == "__main__":
     main()
