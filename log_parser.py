@@ -4,7 +4,7 @@ import re
 from unittest import TestSuite
 
 
-LOG_ENTRY_REGEX = r'^([0-9.]+?) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+?) "(.*?[^\\])" "(.*?[^\\])"'
+LOG_ENTRY_REGEX = r'([0-9.]+?) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+?) "(.*?)(?<!\\)" "(.*?)(?<!\\)"'
 BOT_URL_REGEX = r"(http\S+?)[);]"
 
 
@@ -127,8 +127,9 @@ class Log_parser:
 #######################
         
 def main():
-    test_re_parse()
+    # test_re_parse()
     # test_my_parse()
+    test_compare()
 
 
 def check_entry_length(entry: Log_entry, line: str, counter:int, output):
@@ -163,6 +164,40 @@ def test_my_parse():
 def test_re_parse():
     re_prog_entry = re.compile(LOG_ENTRY_REGEX)
     test_parse(lambda line: parse_with_regex(line, re_prog_entry))
+
+def test_compare():
+    import time
+    import sys 
+
+    # Python 3.7 and newer
+    # https://stackoverflow.com/questions/16549332/python-3-how-to-specify-stdin-encoding
+    sys.stdin.reconfigure(encoding='utf-8')
+
+    i = 1
+    time1 = time.time()
+    re_prog_entry = re.compile(LOG_ENTRY_REGEX, re.UNICODE)
+    re_parse = lambda line: parse_with_regex(line, re_prog_entry)
+
+    print("Test has started", file=sys.stderr)
+
+    for line in sys.stdin:
+        mine = parse_log_entry(line)
+        re_parsed = re_parse(line)
+        
+        mine_s = mine.__str__()
+        re_parsed_s = re_parsed.__str__()
+
+        if mine_s != re_parsed_s:
+            print(f"error line no.{i}", file=sys.stderr)
+            print("mine:", file=sys.stderr)
+            print(mine_s, file=sys.stderr)
+            print("regex:", file=sys.stderr)
+            print(re_parsed_s, "\n", file=sys.stderr)
+
+        i += 1
+
+    print(f"Test has ended, took {round(time.time() - time1, 1)} sec", file=sys.stderr)
+      
       
 
 if __name__ == "__main__":
