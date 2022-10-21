@@ -1,5 +1,4 @@
-from cgitb import small
-from typing import List, TextIO, Optional, Tuple, Dict, Set
+from typing import List, TextIO, Optional, Tuple, Dict, Set, Callable
 from collections import Counter
 import sys
 import socket
@@ -10,8 +9,8 @@ from html_maker import Html_maker, make_table
 import random
 import requests
 import time
-from log_parser import Log_entry, parse_log_entry
-import json
+from log_parser import Log_entry, parse_log_entry, parse_entry_with_regex
+import json, re
 
 
 """
@@ -25,6 +24,10 @@ TIME_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
 MONTHS = ["Error", "Jan", "Feb", "Mar", "Apr", "May",
           "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 DAYS = ["Mon", "Tue", "Wed", "Thr", "Fri", "Sat", "Sun"]
+
+BOT_URL_REGEX = r"(http\S+?)[);]"
+RE_PROG_BOT_URL = re.compile(BOT_URL_REGEX)
+
 
 
 """
@@ -62,33 +65,60 @@ class Ez_timer:
 """
 
 
+def get_bot_url(user_agent: str) -> str:
+    # if "user agent" field of the log entry doesn't contain
+    # bot's url, return empty string
+    match = RE_PROG_BOT_URL.search( user_agent)
+    if match is None:
+        return ""
+    return match.group(1)
+
+
+def determine_bot(entry:Log_entry, *args: Callable[[Log_entry], bool]) -> Tuple[bool, str]:
+    # returns: - [True, bot_url] if stat is classified as botbased on url in user_agent,
+    #          - [True, ""] when bot calssified based on predicate in *args,
+    #          - [False, ""]  otherwise
+
+    match = RE_PROG_BOT_URL.search(entry.user_agent)
+    if match is not None:
+        return (True, match.group(1))
+
+    for func in args:
+        if func(entry):
+            return (True, "")
+    
+    return (False, "")
+
+
 class Ip_stats:
     first_api_req_ts = None
     free_geolocations = 110  # www.geoplugin.net api oficial limit is 120 requsts/min
     session = requests.Session()
+    re_prog_bot_url = re.compile(BOT_URL_REGEX)
 
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "date")
 
-    def __init__(self, entry, bot_url=None, json=False) -> None:
-        # when json is False entry is supposted to be Log_entry object
-        # otherwise entry is dict 
+    def __init__(self, entry:Log_entry, is_bot=Optional[bool],
+                 bot_url="", json:Optional[str]=None) -> None:
 
-        if json:
-            self._from_json(entry)
+        if json is not None:
+            self._from_json(json)
             return
 
+        self.ip_addr = entry.ip_addr
         self.host_name = "Unresolved"
         self.geolocation = ""
         self.requests_num = 0
         self.sessions_num = 0
         self.date = datetime.datetime.strptime("01/Jan/1980:00:00:00 +0000",
                                                TIME_FORMAT)
-        self.ip_addr = entry.ip_addr
-        if bot_url is None:
-            bot_url = entry.get_bot_url()
-        self.bot_url = bot_url
-        self.is_bot = bot_url != ""
+
+        if is_bot is None:
+            self.is_bot, self.bot_url = determine_bot(entry)
+            return
+
+        self.is_bot, self.bot_url = is_bot, bot_url
 
     def update_host_name(self, precision: int = 3) -> None:
         try:
@@ -209,7 +239,7 @@ class Stat_struct:
     
     def _set_attr(self, name, data):
         if name == "stats":
-            self.stats = {key : Ip_stats(stat, json=True) for key, stat in data.items()}
+            self.stats = {key : Ip_stats(None, json=stat) for key, stat in data.items()}
         elif name == "month_req_distrib":
             to_tuple = lambda x: tuple(map(int, x.split(",")))
             self.month_req_distrib = Counter({to_tuple(key) : val
@@ -230,16 +260,21 @@ class Stat_struct:
 
 
 class Log_stats:
-    def __init__(self, input: Optional[TextIO] = None, err_mess=False):
+    def __init__(self, input: Optional[TextIO] = None, err_msg=False, config_f=None):
         self.bots = Stat_struct()
         self.people = Stat_struct()
-        self.err_mess = err_mess
+        self.err_msg = err_msg
 
         self.daily_data: Dict[datetime.date, Tuple[Set[str], int, int]] = {}
         # ^: date -> (unique_ips, requests_number, people_session_number)
         self.year_stats: Dict[int, Tuple(Stat_struct, Stat_struct)] = {}
         # ^: year -> (bots, people)
         self.current_year = None
+
+        if config_f is not None:
+            self.initialize_bot_set(config_f)
+        else:
+            self.bots_set = set()
 
         if input:
             self.make_stats(input)
@@ -281,38 +316,43 @@ class Log_stats:
             self._set_attr(key, data)
 
     def save(self, f_name: str):
-        if self.err_mess:
+        if self.err_msg:
             time1 = Ez_timer("Saving stats")
 
         with open(f_name, "w") as f:
             json.dump(self.json(), f)
         
-        if self.err_mess:
+        if self.err_msg:
             time1.finish()
 
     def load(self, f_name: str):
-        if self.err_mess:
+        if self.err_msg:
             time1 = Ez_timer("Loading stats")
 
         with open(f_name, "r") as f:
             self.from_json(json.load(f))
 
-        if self.err_mess:
+        if self.err_msg:
             time1.finish()
+    
+    def initialize_bot_set(self, config_file_path: str) -> None:
+        with open(config_file_path, "r") as f:
+            self.bots_set = set([ ip_addr for ip_addr in f ])
 
     def make_stats(self, input: TextIO):
-        if self.err_mess:
+        if self.err_msg:
             timer = Ez_timer("Data parsing and proccessing")
 
         for line in input:
             entry = parse_log_entry(line)
+            # entry = parse_entry_with_regex(line)
 
             if len(entry) == 9:  # correct format of the log entry
                 self._add_entry(entry)
-            elif self.err_mess:
+            elif self.err_msg:
                 print("log entry parsing failed:\n\t", entry, file=sys.stderr)
 
-        if self.err_mess:
+        if self.err_msg:
             timer.finish()
         
         # save current year in case it's not already saved
@@ -323,29 +363,25 @@ class Log_stats:
         if self.current_year != dt.year:
             self._switch_years(dt.year)
 
-        bot_url = entry.get_bot_url()
+        is_bot, bot_url = determine_bot(entry, lambda x: x.ip_addr in self.bots_set)
 
-        if bot_url:
-            stats = self.bots
-            key = bot_url
-        else:
-            stats = self.people
-            key = entry.ip_addr
+        stat_struct = self.bots if is_bot else self.people
+        key = bot_url if bot_url else entry.ip_addr
 
-        ip_stat = stats.stats.get(key)
-
+        ip_stat = stat_struct.stats.get(key)
         if ip_stat is None:
-            ip_stat = Ip_stats(entry, bot_url)
-        # 1 if new session was created, 0 otherwise
+            ip_stat = Ip_stats(entry, bot_url=bot_url)
+            
         new_sess = ip_stat.add_entry(entry)
+        # ^ 1 if new session was created, 0 otherwise
 
-        stats.stats[key] = ip_stat
-        stats.day_req_distrib[ip_stat.date.hour] += 1
-        stats.week_req_distrib[ip_stat.date.weekday()] += 1
-        stats.month_req_distrib[(ip_stat.date.year, ip_stat.date.month)] += 1
-        stats.day_sess_distrib[ip_stat.date.hour] += new_sess
-        stats.week_sess_distrib[ip_stat.date.weekday()] += new_sess
-        stats.month_sess_distrib[(
+        stat_struct.stats[key] = ip_stat
+        stat_struct.day_req_distrib[ip_stat.date.hour] += 1
+        stat_struct.week_req_distrib[ip_stat.date.weekday()] += 1
+        stat_struct.month_req_distrib[(ip_stat.date.year, ip_stat.date.month)] += 1
+        stat_struct.day_sess_distrib[ip_stat.date.hour] += new_sess
+        stat_struct.week_sess_distrib[ip_stat.date.weekday()] += new_sess
+        stat_struct.month_sess_distrib[(
             ip_stat.date.year, ip_stat.date.month)] += new_sess
 
         # making daily_data for the picture
@@ -373,12 +409,12 @@ class Log_stats:
             self._switch_years(year)
 
         html: Html_maker = Html_maker()
-        if self.err_mess:
+        if self.err_msg:
             timer = Ez_timer("making charts of bots and human users")
 
         self._print_bots(html, selected)
         self._print_users(html, selected)
-        if self.err_mess:
+        if self.err_msg:
             timer.finish()
 
         self._print_countries_stats(
@@ -473,12 +509,48 @@ class Log_stats:
                                    reverse=True)
         return (req_sorted_stats, sess_sorted_stats)
 
+
+# TODO: prepsat na jeden
+    def _people_iter(self, data: List[Ip_stats], n: int, host_name=True):
+        i = 0
+        n = min(n, len(data))
+        while i < n:
+            ip_stat = data[i]
+            if host_name:
+                ip_stat.update_host_name()
+            if not ip_stat.geolocation:
+                ip_stat.update_geolocation()
+            yield [f"{i + 1}",
+                    ip_stat.ip_addr,
+                    ip_stat.host_name,
+                    ip_stat.geolocation,
+                    ip_stat.requests_num,
+                    ip_stat.sessions_num
+                    ]
+            i += 1
+    
+    def _bots_iter(data: List[Ip_stats], n: int, host_name=True):
+        i = 0
+        n = min(n, len(data))
+        while i < n:
+            ip_stat = data[i]
+            if host_name:
+                ip_stat.update_host_name()
+            yield [f"{i + 1}",
+                    ip_stat.bot_url,
+                    ip_stat.host_name,
+                    ip_stat.requests_num,
+                    ip_stat.sessions_num
+                    ]
+            i += 1
+
     def _print_most_frequent(self,
                              html: Html_maker,
                              req_sorted_stats: List[Ip_stats],
                              sess_sorted_stats: List[Ip_stats],
                              bots,
-                             selected=""):
+                             selected="",
+                             host_name=True):
 
         html.append('<h3>Most frequent</h3>\n<label>Select:</label>')
 
@@ -490,50 +562,22 @@ class Log_stats:
             group_name = "bots"
             header = ["Rank", "Bot's url", "Host name",
                       "Requests count", "Sessions count"]
-
-            def content_iter(data: List[Ip_stats], n: int):
-                i = 0
-                n = min(n, len(data))
-                while i < n:
-                    ip_stat = data[i]
-                    ip_stat.update_host_name()
-                    yield [f"{i + 1}",
-                           ip_stat.bot_url,
-                           ip_stat.host_name,
-                           ip_stat.requests_num,
-                           ip_stat.sessions_num
-                           ]
-                    i += 1
+            content_iter = self._bots_iter
         else:
             group_name = "human users"
             header = ["Rank", "IP address", "Host name",
                       "Geolocation", "Requests count", "Sessions count"]
+            content_iter = self._people_iter
 
-            def content_iter(data: List[Ip_stats], n: int):
-                i = 0
-                n = min(n, len(data))
-                while i < n:
-                    ip_stat = data[i]
-                    ip_stat.update_host_name()
-                    if not ip_stat.geolocation:
-                        ip_stat.update_geolocation()
-                    yield [f"{i + 1}",
-                           ip_stat.ip_addr,
-                           ip_stat.host_name,
-                           ip_stat.geolocation,
-                           ip_stat.requests_num,
-                           ip_stat.sessions_num
-                           ]
-                    i += 1
         html.append(make_table(f"Most frequent {group_name} by number of sessions",
                                header,
-                               content_iter(sess_sorted_stats, 20),
+                               content_iter(sess_sorted_stats, 20, host_name=host_name),
                                None,
                                ["selectable", selected, uniq_classes[0]]))
 
         html.append(make_table(f"Most frequent {group_name} by number of requests",
                                header,
-                               content_iter(req_sorted_stats, 20),
+                               content_iter(req_sorted_stats, 20, host_name=host_name),
                                None,
                                ["selectable", selected, uniq_classes[1]]))
         html.append("</div>")
@@ -743,15 +787,15 @@ class Log_stats:
                 samples.append(data)
 
         # geolocation
-        timer = Ez_timer("geolocations", verbose=self.err_mess)
+        timer = Ez_timer("geolocations", verbose=self.err_msg)
 
         geoloc_stats = []
         for i, sample in enumerate(samples):
             timer2 = Ez_timer(f"geolocaion {i+1}", verbose=False)
             geoloc_stats.append(self._get_geolist_from_sample(sample))
-            timer2.finish(self.err_mess)
+            timer2.finish(self.err_msg)
 
-        timer.finish(self.err_mess)
+        timer.finish(self.err_msg)
 
         # Printing
         selected = "selected" if selected else ""
@@ -796,12 +840,12 @@ class Log_stats:
             sample_size = len(sample)
 
         # geolocation
-        if self.err_mess:
+        if self.err_msg:
             timer = Ez_timer("geolocation")
 
         geoloc_stats = self._get_geolist_from_sample(sample)
 
-        if self.err_mess:
+        if self.err_msg:
             timer.finish()
 
         # making html
@@ -911,20 +955,21 @@ class Log_stats:
     def print_histogram(self, file_name: str):
         # For people only!!
 
-        template = "<html><head><style>{css}</style> {js}</head>\n<body>\n{content}\n</body>\n</html>"
-        html = Html_maker(template, None, "")
+        template = "<html><head><style>{css}</style> <script>{js}</script></head>\n<body>\n{content}\n</body>\n</html>"
+        html = Html_maker(template)
 
-
-        session_data = []
-        request_data = []
 
         for year in sorted(self.year_stats.keys()):
+            session_data = []
+            request_data = []
             self._switch_years(year)
-            html.append(f"<h2>Year {year}</h2>")
 
-            for stat in self.people.stats.values():
+            stats = self.people.stats.values()
+            for stat in stats:
                 session_data.append(stat.sessions_num)
                 request_data.append(stat.requests_num)
+
+            html.append(f"<h2>Year {year}</h2>")
 
             # sessions
             html.append("<h3>Session histogram</h3>")
@@ -941,8 +986,8 @@ class Log_stats:
             plt.clf()
 
             _, ax = plt.subplots()
-            less_than_100 = self.splited_data_info(session_data, [100])[0]
-            ax.hist(less_than_100, bins=s_bins, log=True)
+            sess_lesser_data = self.splited_data_info(session_data, [200])[0]
+            ax.hist(sess_lesser_data, bins=s_bins, log=True)
 
             with io.StringIO() as f:
                 plt.savefig(f, format="svg")
@@ -950,6 +995,8 @@ class Log_stats:
             plt.clf()
 
             self.splited_data_info(session_data, s_delims, html)
+
+
         
             # requests
             html.append("<h3>Requests histogram</h3>")
@@ -966,8 +1013,8 @@ class Log_stats:
             plt.clf()
 
             _, ax = plt.subplots()
-            less_than_500 = self.splited_data_info(request_data, [500])[0]
-            ax.hist(less_than_500, bins=s_bins, log=True)
+            req_lesser_data = self.splited_data_info(request_data, [600])[0]
+            ax.hist(req_lesser_data, bins=s_bins, log=True)
 
             with io.StringIO() as f:
                 plt.savefig(f, format="svg")
@@ -976,7 +1023,18 @@ class Log_stats:
 
             self.splited_data_info(request_data, r_delims, html)
 
+            # top users
+            self._print_most_frequent(html,
+                                        sorted(stats, key=lambda x: x.requests_num, reverse=True),
+                                        sorted(stats, key=lambda x: x.sessions_num, reverse=True),
+                                        bots=False,
+                                        selected="selected",
+                                        host_name=False
+                                        )
+
         plt.close('all')
+
+        
 
         with open(file_name, "w") as f:
             f.write(html.html())
