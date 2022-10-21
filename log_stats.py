@@ -1,4 +1,4 @@
-from typing import List, TextIO, Optional, Tuple, Dict, Set
+from typing import List, TextIO, Optional, Tuple, Dict, Set, Callable
 from collections import Counter
 import sys
 import socket
@@ -9,7 +9,7 @@ from html_maker import Html_maker, make_table
 import random
 import requests
 import time
-from log_parser import Log_entry, parse_log_entry
+from log_parser import Log_entry, parse_log_entry, parse_entry_with_regex
 import json, re
 
 
@@ -24,6 +24,10 @@ TIME_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
 MONTHS = ["Error", "Jan", "Feb", "Mar", "Apr", "May",
           "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 DAYS = ["Mon", "Tue", "Wed", "Thr", "Fri", "Sat", "Sun"]
+
+BOT_URL_REGEX = r"(http\S+?)[);]"
+RE_PROG_BOT_URL = re.compile(BOT_URL_REGEX)
+
 
 
 """
@@ -64,36 +68,39 @@ class Ez_timer:
 def get_bot_url(user_agent: str) -> str:
     # if "user agent" field of the log entry doesn't contain
     # bot's url, return empty string
-    match = re.search(r"(http\S+?)[);]", user_agent)
+    match = RE_PROG_BOT_URL.search( user_agent)
     if match is None:
         return ""
     return match.group(1)
 
 
-def determine_bot(entry:Log_entry, bot_set: Set[str] = set()) -> Tuple[bool, str]:
-    # returns: - [True, bot_url] if stat is classified as bot, when bot is not 
-    #                  identified with url in user_agent, the bot_url is empty string
+def determine_bot(entry:Log_entry, *args: Callable[[Log_entry], bool]) -> Tuple[bool, str]:
+    # returns: - [True, bot_url] if stat is classified as botbased on url in user_agent,
+    #          - [True, ""] when bot calssified based on predicate in *args,
     #          - [False, ""]  otherwise
 
-    match = re.search(r"(http\S+?)[);]", entry.user_agent)
+    match = RE_PROG_BOT_URL.search(entry.user_agent)
     if match is not None:
         return (True, match.group(1))
 
-    return (entry.ip_addr in bot_set, "")
+    for func in args:
+        if func(entry):
+            return (True, "")
+    
+    return (False, "")
 
 
 class Ip_stats:
     first_api_req_ts = None
     free_geolocations = 110  # www.geoplugin.net api oficial limit is 120 requsts/min
     session = requests.Session()
+    re_prog_bot_url = re.compile(BOT_URL_REGEX)
 
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "date")
 
     def __init__(self, entry:Log_entry, is_bot=Optional[bool],
                  bot_url="", json:Optional[str]=None) -> None:
-        # when json is False entry is supposted to be Log_entry object
-        # otherwise entry is dict 
 
         if json is not None:
             self._from_json(json)
@@ -266,6 +273,8 @@ class Log_stats:
 
         if config_f is not None:
             self.initialize_bot_set(config_f)
+        else:
+            self.bots_set = set()
 
         if input:
             self.make_stats(input)
@@ -336,6 +345,7 @@ class Log_stats:
 
         for line in input:
             entry = parse_log_entry(line)
+            # entry = parse_entry_with_regex(line)
 
             if len(entry) == 9:  # correct format of the log entry
                 self._add_entry(entry)
@@ -353,7 +363,7 @@ class Log_stats:
         if self.current_year != dt.year:
             self._switch_years(dt.year)
 
-        is_bot, bot_url = determine_bot(entry, self.bots_set)
+        is_bot, bot_url = determine_bot(entry, lambda x: x.ip_addr in self.bots_set)
 
         stat_struct = self.bots if is_bot else self.people
         key = bot_url if bot_url else entry.ip_addr

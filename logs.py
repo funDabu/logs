@@ -23,10 +23,10 @@ def main():
                   action="store", type="int", dest="year", default=0,
                   help="prints log statistics of given year to std.out")
     parser.add_option("-s", "--save",
-                  action="store", type="str", dest="o_file", default=None,
+                  action="store", type="str", dest="output_f", default=None,
                   help="save the statisics as json, specify name of the file")
     parser.add_option("-l", "--load",
-                  action="store", type="str", dest="i_file", default=None,
+                  action="store", type="str", dest="input_f", default=None,
                   help="load the statisics from json, specify the name of the file")
     parser.add_option("-H", "--histogram",
                   action="store_true", dest="hist", default=False,
@@ -36,16 +36,16 @@ def main():
                   help="when no --year is given and --clean is set, "
                        "then charts are not made. Good for use with --test or --histogram")
     parser.add_option("-C", "--config",
-                  action="store", type="str", dest="config_file", default=None,
+                  action="store", type="str", dest="config_f", default=None,
                   help="specify the name of configuration file, "
                        "ip addresses in config file will be calsified as bots")              
 
-
     options, _ = parser.parse_args()
     
-    stats = Log_stats(err_mess=options.error)
-    if options.i_file is not None:
-        stats.load(options.i_file)
+    stats = Log_stats(err_msg=options.error, config_f=options.config_f)
+
+    if options.input_f is not None:
+        stats.load(options.input_f)
     else:
         stats.make_stats(sys.stdin)
 
@@ -66,8 +66,8 @@ def main():
     if options.hist:
         stats.print_histogram("_hist.html")
 
-    if options.o_file is not None:
-        stats.save(options.o_file)
+    if options.output_f is not None:
+        stats.save(options.output_f)
 
 
 def make_log_stats(log_stats: Log_stats, options, selected: bool):
