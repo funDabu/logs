@@ -64,7 +64,7 @@ def parse_log_entry(entry: str) -> Log_entry:
     return result
 
 
-def general_parse_entry_with_regex(line: str, re_prog: re.Pattern) -> Log_entry:
+def general_parse_entry_with_regex(line: str, re_prog) -> Log_entry:
     result = Log_entry()
     match = re_prog.search(line)
 
@@ -143,8 +143,7 @@ def test_my_parse():
 
 
 def test_re_parse():
-    re_prog_entry = re.compile(LOG_ENTRY_REGEX)
-    test_parse(lambda line: parse_entry_with_regex(line, re_prog_entry))
+    test_parse(lambda line: parse_entry_with_regex(line))
 
 def test_compare():
     import time

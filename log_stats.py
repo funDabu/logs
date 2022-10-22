@@ -104,7 +104,7 @@ class Ip_stats:
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "datetime")
 
-    def __init__(self, entry:Log_entry, is_bot=Optional[bool],
+    def __init__(self, entry:Log_entry, is_bot:Optional[bool]=None,
                  bot_url="", json:Optional[str]=None) -> None:
 
         if json is not None:
@@ -335,6 +335,23 @@ class Log_stats:
         
         if self.err_msg:
             time1.finish()
+
+    # DEBUG
+    # def save(self, f_name: str):
+    #     if self.err_msg:
+    #         time1 = Ez_timer("Saving stats")
+
+    #     output = self.json()
+
+    #     print(output)
+    #     print()
+    #     print(str(output))
+
+    #     with open(f_name, "w") as f:
+    #         json.dump(output, f)
+        
+    #     if self.err_msg:
+    #         time1.finish()
 
     def load(self, f_name: str):
         if self.err_msg:
