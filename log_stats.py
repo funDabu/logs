@@ -9,7 +9,7 @@ from html_maker import Html_maker, make_table
 import random
 import requests
 import time
-from log_parser import Log_entry, parse_log_entry, parse_entry_with_regex
+from log_parser import Log_entry, parse_log_entry, parse_entry_with_regex, regex_parser
 import json, re
 
 
@@ -19,7 +19,9 @@ import json, re
 
 SESSION_DELIM = 1  # in minutes
 
-TIME_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
+LOG_DT_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
+DT_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
+DATE_FORMAT = "%Y-%m-%d"
 
 MONTHS = ["Error", "Jan", "Feb", "Mar", "Apr", "May",
           "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -64,6 +66,9 @@ class Ez_timer:
 ========== STATISTICS ==========
 """
 
+def strp_date(date: str, format: str) -> datetime.date:
+    dt = datetime.datetime.strptime(date, format)
+    return dt.date()
 
 def get_bot_url(user_agent: str) -> str:
     # if "user agent" field of the log entry doesn't contain
@@ -97,7 +102,7 @@ class Ip_stats:
     re_prog_bot_url = re.compile(BOT_URL_REGEX)
 
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
-                 "is_bot", "requests_num", "sessions_num", "date")
+                 "is_bot", "requests_num", "sessions_num", "datetime")
 
     def __init__(self, entry:Log_entry, is_bot=Optional[bool],
                  bot_url="", json:Optional[str]=None) -> None:
@@ -111,8 +116,8 @@ class Ip_stats:
         self.geolocation = ""
         self.requests_num = 0
         self.sessions_num = 0
-        self.date = datetime.datetime.strptime("01/Jan/1980:00:00:00 +0000",
-                                               TIME_FORMAT)
+        self.datetime = datetime.datetime.strptime("01/Jan/1980:00:00:00 +0000",
+                                                   LOG_DT_FORMAT)
 
         if is_bot is None:
             self.is_bot, self.bot_url = determine_bot(entry)
@@ -136,14 +141,15 @@ class Ip_stats:
         # <entry> is line from log parsed with <parse_log_entry> function
         # Returns 1 if <entry> is a new session, 0 otherwise
         rv = 0
-        dt = datetime.datetime.strptime(entry.time, TIME_FORMAT)
+        dt = datetime.datetime.strptime(entry.time, LOG_DT_FORMAT)
 
-        if abs(dt - self.date) >= datetime.timedelta(minutes=SESSION_DELIM):
+
+        if abs(dt - self.datetime) >= datetime.timedelta(minutes=SESSION_DELIM):
             self.sessions_num += 1
             rv = 1
 
         self.requests_num += 1
-        self.date = dt
+        self.datetime = dt
         return rv
 
     def update_geolocation(self):
@@ -183,16 +189,16 @@ class Ip_stats:
             self.geolocation = "Unknown"
     
     def _get_attr(self, name:str):
-        if name == "date":
-            return self.date.isoformat()
+        if name == "datetime":
+            return self.datetime.__format__(DT_FORMAT)
         return getattr(self, name, None)
 
     def json(self):
         return {key : self._get_attr(key) for key in self.__slots__}
 
     def _set_attr(self, name, data):
-        if name == "date":
-            self.date = datetime.datetime.fromisoformat(data)
+        if name == "datetime":
+            self.date = datetime.datetime.strptime(data, DT_FORMAT)
         else:
             setattr(self, name, data)
 
@@ -286,11 +292,14 @@ class Log_stats:
             return self.people.json()
 
         if name == "daily_data":
-            return {d.isoformat(): (list(ips), r, s)
+            return {d.__format__(DATE_FORMAT): (list(ips), r, s)
                         for d, (ips, r, s) in self.daily_data.items()}
         
         if name == "year_stats":
             return {y : (b.json(), p.json()) for y, (b, p) in self.year_stats.items()}
+        
+        if name == "bots_set":
+            return list(self.bots_set)
         
         return getattr(self, name, None)
     
@@ -300,11 +309,13 @@ class Log_stats:
         elif name == "people":
             self.people = Stat_struct(data)
         elif name == "daily_data":
-            self.daily_data = {datetime.date.fromisoformat(d): (set(ips), r, s)
+            self.daily_data = {strp_date(d, DATE_FORMAT): (set(ips), r, s)
                                     for d, (ips, r, s) in data.items()}
         elif name == "year_stats":
             self.year_stats = {int(year): (Stat_struct(b), Stat_struct(p))
                                     for year, (b, p) in data.items()}
+        elif name == "bots_set":
+            self.bots_set = set(data)
         else:
             setattr(self, name, data)
     
@@ -339,13 +350,30 @@ class Log_stats:
         with open(config_file_path, "r") as f:
             self.bots_set = set([ ip_addr for ip_addr in f ])
 
-    def make_stats(self, input: TextIO):
+    def make_stats_with_buffer_parser(self, input: TextIO):
+        if self.err_msg:
+            timer = Ez_timer("Data parsing and proccessing")
+
+        for buffer in regex_parser(input):
+            for entry in buffer:
+                if len(entry) == 9:  # correct format of the log entry
+                    self._add_entry(entry)
+                elif self.err_msg:
+                    print("log entry parsing failed:\n\t", entry, file=sys.stderr)
+
+        if self.err_msg:
+            timer.finish()
+        
+        # save current year in case it's not already saved
+        self._switch_years(self.current_year)
+
+    def make_stats_without_parser(self, input: TextIO):
         if self.err_msg:
             timer = Ez_timer("Data parsing and proccessing")
 
         for line in input:
-            entry = parse_log_entry(line)
-            # entry = parse_entry_with_regex(line)
+            # entry = parse_log_entry(line)
+            entry = parse_entry_with_regex(line)
 
             if len(entry) == 9:  # correct format of the log entry
                 self._add_entry(entry)
@@ -357,9 +385,12 @@ class Log_stats:
         
         # save current year in case it's not already saved
         self._switch_years(self.current_year)
+    
+    def make_stats(self, input: TextIO):
+        self.make_stats_without_parser(input)
 
     def _add_entry(self, entry: Log_entry):
-        dt = datetime.datetime.strptime(entry.time, TIME_FORMAT)
+        dt = datetime.datetime.strptime(entry.time, LOG_DT_FORMAT)
         if self.current_year != dt.year:
             self._switch_years(dt.year)
 
@@ -376,16 +407,16 @@ class Log_stats:
         # ^ 1 if new session was created, 0 otherwise
 
         stat_struct.stats[key] = ip_stat
-        stat_struct.day_req_distrib[ip_stat.date.hour] += 1
-        stat_struct.week_req_distrib[ip_stat.date.weekday()] += 1
-        stat_struct.month_req_distrib[(ip_stat.date.year, ip_stat.date.month)] += 1
-        stat_struct.day_sess_distrib[ip_stat.date.hour] += new_sess
-        stat_struct.week_sess_distrib[ip_stat.date.weekday()] += new_sess
+        stat_struct.day_req_distrib[ip_stat.datetime.hour] += 1
+        stat_struct.week_req_distrib[ip_stat.datetime.weekday()] += 1
+        stat_struct.month_req_distrib[(ip_stat.datetime.year, ip_stat.datetime.month)] += 1
+        stat_struct.day_sess_distrib[ip_stat.datetime.hour] += new_sess
+        stat_struct.week_sess_distrib[ip_stat.datetime.weekday()] += new_sess
         stat_struct.month_sess_distrib[(
-            ip_stat.date.year, ip_stat.date.month)] += new_sess
+            ip_stat.datetime.year, ip_stat.datetime.month)] += new_sess
 
         # making daily_data for the picture
-        date = ip_stat.date.date()
+        date = ip_stat.datetime.date()
         ip_addrs, req_num, sess_num = self.daily_data.get(date, (set(), 0, 0))
         ip_addrs.add(ip_stat.ip_addr)
         if not ip_stat.is_bot and new_sess:
