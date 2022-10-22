@@ -1,4 +1,4 @@
-from typing import List, Callable
+from typing import List, Callable, TextIO
 import re
 
 LOG_ENTRY_REGEX = r'([0-9.]+?) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+?) "(.*?)(?<!\\)" "(.*?)(?<!\\)"'
@@ -82,23 +82,22 @@ def parse_entry_with_regex(line: str) -> Log_entry:
     return general_parse_entry_with_regex(line, RE_PROG_ENTRY)
 
 
-def regex_parser(input_path:str, 
+def regex_parser(input: TextIO, 
                  buffer_size: int = 1000,
-                 parse_with_re: bool = False) -> List[Log_entry]:
+                 parse_with_re: bool = True) -> List[Log_entry]:
         
     buffer = []
     i = 0
     parse_func: Callable[[str], Log_entry] =\
         parse_entry_with_regex if parse_with_re else parse_log_entry
 
-    with open(input_path, "r") as f:
-        for line in f:
-            buffer.append(parse_func(line))
-            i += 1
-            if i == buffer_size:
-                yield buffer
-                buffer = []
-                i = 0
+    for line in input:
+        buffer.append(parse_func(line))
+        i += 1
+        if i == buffer_size:
+            yield buffer
+            buffer = []
+            i = 0
         
     if i > 0:
         yield buffer
@@ -157,7 +156,7 @@ def test_compare():
 
     i = 1
     time1 = time.time()
-    re_prog_entry = re.compile(LOG_ENTRY_REGEX, re.UNICODE)
+    re_prog_entry = re.compile(LOG_ENTRY_REGEX)
     re_parse = lambda line: parse_entry_with_regex(line, re_prog_entry)
 
     print("Test has started", file=sys.stderr)
