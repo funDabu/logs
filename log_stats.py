@@ -198,7 +198,7 @@ class Ip_stats:
 
     def _set_attr(self, name, data):
         if name == "datetime":
-            self.date = datetime.datetime.strptime(data, DT_FORMAT)
+            self.datetime = datetime.datetime.strptime(data, DT_FORMAT)
         else:
             setattr(self, name, data)
 

@@ -35,6 +35,10 @@ def main():
                   action="store_true", dest="clean", default=False,
                   help="when no --year is given and --clean is set, "
                        "then charts are not made. Good for use with --test or --histogram")
+    parser.add_option("-i", "--ignore",
+                  action="store_true", dest="ignore", default=False,
+                  help="ignore data from std input, "
+                       "has to be used together with --load option")
     parser.add_option("-C", "--config",
                   action="store", type="str", dest="config_f", default=None,
                   help="specify the name of configuration file, "
@@ -46,7 +50,9 @@ def main():
 
     if options.input_f is not None:
         stats.load(options.input_f)
-    else:
+
+    if options.input_f is None\
+       or not options.ignore:
         stats.make_stats(sys.stdin)
 
     if options.test > 0:
