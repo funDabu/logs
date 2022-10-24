@@ -104,7 +104,7 @@ class Ip_stats:
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "datetime")
 
-    def __init__(self, entry:Log_entry, is_bot=Optional[bool],
+    def __init__(self, entry:Log_entry, is_bot:Optional[bool]=None,
                  bot_url="", json:Optional[str]=None) -> None:
 
         if json is not None:
@@ -336,6 +336,23 @@ class Log_stats:
         if self.err_msg:
             time1.finish()
 
+    # DEBUG
+    # def save(self, f_name: str):
+    #     if self.err_msg:
+    #         time1 = Ez_timer("Saving stats")
+
+    #     output = self.json()
+
+    #     print(output)
+    #     print()
+    #     print(str(output))
+
+    #     with open(f_name, "w") as f:
+    #         json.dump(output, f)
+        
+    #     if self.err_msg:
+    #         time1.finish()
+
     def load(self, f_name: str):
         if self.err_msg:
             time1 = Ez_timer("Loading stats")
@@ -359,7 +376,8 @@ class Log_stats:
                 if len(entry) == 9:  # correct format of the log entry
                     self._add_entry(entry)
                 elif self.err_msg:
-                    print("log entry parsing failed:\n\t", entry, file=sys.stderr)
+                    print(f"log entry parsing failed (len={len(entry)}):\n",
+                          entry, file=sys.stderr)
 
         if self.err_msg:
             timer.finish()
@@ -387,7 +405,8 @@ class Log_stats:
         self._switch_years(self.current_year)
     
     def make_stats(self, input: TextIO):
-        self.make_stats_without_parser(input)
+        # self.make_stats_without_parser(input)
+        self.make_stats_with_buffer_parser(input)
 
     def _add_entry(self, entry: Log_entry):
         dt = datetime.datetime.strptime(entry.time, LOG_DT_FORMAT)
