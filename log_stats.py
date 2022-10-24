@@ -674,7 +674,7 @@ class Log_stats:
         html.append(
             f'</div>\n<div class="selectable {selected} {uniq_classes[2]}">')
         self._print_distribution_graph(html,
-                                       data.day_sess_distrib,
+                                       data.day_req_distrib,
                                        "hours",
                                        "request count",
                                        [f"{i}:00 - {i}:59" for i in range(24)],
