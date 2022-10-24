@@ -376,7 +376,8 @@ class Log_stats:
                 if len(entry) == 9:  # correct format of the log entry
                     self._add_entry(entry)
                 elif self.err_msg:
-                    print("log entry parsing failed:\n\t", entry, file=sys.stderr)
+                    print(f"log entry parsing failed (len={len(entry)}):\n",
+                          entry, file=sys.stderr)
 
         if self.err_msg:
             timer.finish()
@@ -404,7 +405,8 @@ class Log_stats:
         self._switch_years(self.current_year)
     
     def make_stats(self, input: TextIO):
-        self.make_stats_without_parser(input)
+        # self.make_stats_without_parser(input)
+        self.make_stats_with_buffer_parser(input)
 
     def _add_entry(self, entry: Log_entry):
         dt = datetime.datetime.strptime(entry.time, LOG_DT_FORMAT)

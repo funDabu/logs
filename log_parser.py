@@ -1,4 +1,4 @@
-from typing import List, Callable, TextIO
+from typing import List, Callable, TextIO, Iterator
 import re
 
 LOG_ENTRY_REGEX = r'([0-9.]+?) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+?) "(.*?)(?<!\\)" "(.*?)(?<!\\)"'
@@ -84,7 +84,7 @@ def parse_entry_with_regex(line: str) -> Log_entry:
 
 def regex_parser(input: TextIO, 
                  buffer_size: int = 1000,
-                 parse_with_re: bool = True) -> List[Log_entry]:
+                 parse_with_re: bool = True) -> Iterator[Log_entry]:
         
     buffer = []
     i = 0
@@ -92,15 +92,15 @@ def regex_parser(input: TextIO,
         parse_entry_with_regex if parse_with_re else parse_log_entry
 
     for line in input:
-        buffer.append(parse_func(line))
+        buffer.append(line)
         i += 1
         if i == buffer_size:
-            yield buffer
+            yield map(parse_func, buffer)
             buffer = []
             i = 0
         
     if i > 0:
-        yield buffer
+        yield map(parse_func, buffer)
 
 
 #######################
@@ -108,9 +108,9 @@ def regex_parser(input: TextIO,
 #######################
         
 def main():
-    # test_re_parse()
+    test_re_parse()
     # test_my_parse()
-    test_compare()
+    # test_compare()
 
 
 def check_entry_length(entry: Log_entry, line: str, counter:int, output):
