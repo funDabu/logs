@@ -579,7 +579,7 @@ class Log_stats:
                     ]
             i += 1
     
-    def _bots_iter(data: List[Ip_stats], n: int, host_name=True):
+    def _bots_iter(self, data: List[Ip_stats], n: int, host_name=True):
         i = 0
         n = min(n, len(data))
         while i < n:
@@ -621,13 +621,13 @@ class Log_stats:
 
         html.append(make_table(f"Most frequent {group_name} by number of sessions",
                                header,
-                               content_iter(sess_sorted_stats, 20, host_name=host_name),
+                               content_iter(sess_sorted_stats, 20, host_name),
                                None,
                                ["selectable", selected, uniq_classes[0]]))
 
         html.append(make_table(f"Most frequent {group_name} by number of requests",
                                header,
-                               content_iter(req_sorted_stats, 20, host_name=host_name),
+                               content_iter(req_sorted_stats, 20, host_name),
                                None,
                                ["selectable", selected, uniq_classes[1]]))
         html.append("</div>")
