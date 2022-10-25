@@ -1,4 +1,3 @@
-from statistics import median
 from log_stats import Log_stats
 from PIL import Image, ImageDraw, ImageFont
 from typing import Iterator, List, Optional, Tuple, Iterable, Union
