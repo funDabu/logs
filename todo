@@ -1,6 +1,19 @@
 ## Zadane
+### Urgentni
 - vytvorit script na tvorbu a update zalohy logu
+    - zkopirovat vse po mesicich, pak linux sort - DONE
+    - zkopirovat vse +- timestamp
+        - filtrovat signifikatne starsi
+        - pamatovat prekroceni timestampu
+    - moznost nesekvecne poskladanych logu na vstupu
+    - multitreding
+
+- zacit tvorit statistiky pro logy a davat to do public-html
+
+### Ostatni
 - vytvorik cmake script na pretvoreni statistik, je-li modifikovan log
+
+
 
 ## Vhodne
 ### Urgentni
