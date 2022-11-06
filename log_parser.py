@@ -1,7 +1,8 @@
-from typing import List, Callable, TextIO, Iterator
 import re
 
-LOG_ENTRY_REGEX = r'([0-9.]+?) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+?) "(.*?)(?<!\\)" "(.*?)(?<!\\)"'
+from typing import List, Callable, TextIO, Iterator
+
+from constants import LOG_ENTRY_REGEX
 RE_PROG_ENTRY = re.compile(LOG_ENTRY_REGEX)
 
 

@@ -1,35 +1,27 @@
-from typing import List, TextIO, Optional, Tuple, Dict, Set, Callable
 from collections import Counter
 import sys
 import socket
 import datetime
 import matplotlib.pyplot as plt
 import io
-from html_maker import Html_maker, make_table
 import random
 import requests
 import time
-from log_parser import Log_entry, parse_log_entry, parse_entry_with_regex, regex_parser
 import json, re
+from log_parser import Log_entry, parse_log_entry, parse_entry_with_regex, regex_parser
+from html_maker import Html_maker, make_table
+from typing import List, TextIO, Optional, Tuple, Dict, Set, Callable
 
 
 """
 ========== CONSTANTS ==========
 """
-
-SESSION_DELIM = 1  # in minutes
-
-LOG_DT_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
-DT_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
-DATE_FORMAT = "%Y-%m-%d"
-
-MONTHS = ["Error", "Jan", "Feb", "Mar", "Apr", "May",
-          "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-DAYS = ["Mon", "Tue", "Wed", "Thr", "Fri", "Sat", "Sun"]
+from constants import LOG_DT_FORMAT, DT_FORMAT, DATE_FORMAT, MONTHS, DAYS
 
 BOT_URL_REGEX = r"(http\S+?)[);]"
 RE_PROG_BOT_URL = re.compile(BOT_URL_REGEX)
 
+SESSION_DELIM = 1  # in minutes
 
 
 """

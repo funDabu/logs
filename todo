@@ -1,9 +1,13 @@
-- opravit rozlisovani botu - viz tabulka top stahovacu
-- zprovoznit load na athene
+## Zadane
+- vytvorit script na tvorbu a update zalohy logu
+- vytvorik cmake script na pretvoreni statistik, je-li modifikovan log
+
+## Vhodne
+### Urgentni
+- Udelat system v adresari
+### Ostatni
 - pridat tabulku outliers do picture_overview
 - ?? půměrná a maximmální doba trvání session pro stahovače ??
 - promyslet formáty dat
+- zipovat exportovana data
 - osamostatnit print stats
-- ukládání do SQLite
-- konfigurák na boty a CGI script
-- mrknout jak funguje chron
