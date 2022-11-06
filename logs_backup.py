@@ -75,6 +75,8 @@ class Buffer:
             return self._lines[self._head_i]
 
     def get(self, n: int, default: Optional[str] = None) -> Optional[str]:
+        n = self._end_i if n == -1 else n
+
         if self._head_i <= n <= self._end_i:
             return self._lines(n)
         return default
@@ -107,6 +109,9 @@ class TimeStamp:
     def __init__(self, dtime: dt.datetime, log_entry: str):
         self.dtime = dtime
         self.log_entry = log_entry
+    
+    def update_time(self) -> None:
+        self.dtime = get_time(self.log_entry)
 
     @classmethod
     def from_json(cls, data: str) -> "TimeStamp":
@@ -185,11 +190,12 @@ class Writer:
 
         return False
 
-    def write(self):
+    def write(self, ts: Optional[TimeStamp] = None):
         # Now JUST APPEND at the end of the file
         # could be multithreaded
 
         sorted_out_data = sorted(self._out_data.items(), key=lambda x: x[0])
+        last_log: str
 
         for (year, month), buffers in sorted_out_data:
             f_name = log_file_name(year,
@@ -200,6 +206,11 @@ class Writer:
                 for buffer in buffers:
                     for line in buffer:
                         f.write(line)
+                    last_log = buffer.get(-1)
+        
+        if ts is not None:
+            ts.log_entry = last_log
+            ts.update_time()
 
     def clear(self):
         self._out_data = {}
@@ -325,8 +336,9 @@ def check_timestamp(buffer: Buffer, tss: TimeStamps) -> Tuple[bool, Buffer]:
     return(False, Buffer(new_buffer))
 
 
-def process_log_file(log_path: str, writer: Writer):
+def process_log_file(log_path: str, writer: Writer, ts: TimeStamp) -> None:
     for buffer in buffer_generator(log_path):
+        buffer = check_timestamp(buffer, ts)
         writer.append(buffer)
 
 
@@ -353,12 +365,19 @@ def main() -> int:
     dir_path = DIR_PATH if args.dir_path is None else args.dir_path
     writer = Writer(dir_path, args.log_name)
 
-    for log_file in args.log_files:
-        for buffer in buffer_generator(log_file):
-            # TODO: check time stamp
-            writer.append(buffer)
+    timestamp: TimeStamp
+    with open(args.config_file, "r") as f:
+        timestamp = TimeStamp.from_json(f.read())
 
-    writer.write()
+
+    for log_file in args.log_files:
+        # Assumes log files are ordered from younger to older log file
+        process_log_file(log_file, writer, timestamp)
+
+    writer.write(timestamp)
+    with open(args.config_file, "w") as f:
+        f.write(timestamp.to_json())
+
 
 
 if __name__ == "__main__":
