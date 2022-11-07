@@ -121,48 +121,6 @@ class TimeStamp:
     def to_json(self) -> str:
         return self.log_entry 
 
-class TimeStamps:
-    def __init__(self, file_path: Optional[str]):
-        self._data: Dict[Tuple[int, int], List[TimeStamp]]
-        self.file_path = file_path
-
-        if file_path is not None:
-            self.load_timestamps(file_path)
-
-    def load_timestamps(self, file_path: str) -> None:
-        with open(file_path, "r") as f:
-            self.from_json(json.load(f))
-
-    def _key_from_str(key_str: str) -> Tuple[int, int]:
-        splited = key_str.split('-')
-        assert len(splited) == 2
-
-        return tuple(map(int, splited))
-
-    def _key_to_str(key: Tuple[int, int]) -> str:
-        return f"{key[0]}-{key[1]}"
-
-    def from_json(self, data: Dict[str, List[TimeStamp]]) -> None:
-        #TODO: OTESTOVAT
-        self._data = {self._key_from_str(key): list(map(TimeStamp.from_json, tss))
-                      for key, tss in data.items()}
-
-    def save_timestamps(self, file_path: str) -> None:
-        with open(file_path, "w") as f:
-            json.dump(self.json(), f)
-
-    def json(self) -> Dict[int, List[TimeStamp]]:
-        #TODO: OTESTOVAT
-        return {self._key_to_str(key): list(map(TimeStamp.to_json, tts))
-                for key, tts in self._data.items()}
-
-    def get(self,
-            key: Tuple[int, int],
-            default: Optional[TimeStamp] = None)\
-            -> Optional[TimeStamp]:
-        return self._data.get(key, default)
-
-
 class Writer:
     def __init__(self, dir_path: str, log_name: str) -> None:
         self.__dir_path = os.path.realpath(dir_path)
@@ -299,7 +257,7 @@ def signif_older(test_time: dt.datetime,
            and test_time < timestamp
 
 
-def check_timestamp(buffer: Buffer, tss: TimeStamps) -> Tuple[bool, Buffer]:
+def check_timestamp(buffer: Buffer, ts: TimeStamp) -> Tuple[bool, Buffer]:
     # return [True, buffer] if 
     #   - timestamp was found, 
     #       than buffer contains only entries younfer than the ts
@@ -310,8 +268,6 @@ def check_timestamp(buffer: Buffer, tss: TimeStamps) -> Tuple[bool, Buffer]:
     #   - otherwise siginf. older values are filtered from buffer one by one 
     # 
     # siginficatnly younger means its time is after timestamp + TIME_PROXI_RANGE
-
-    ts = tss.get(get_month_key(buffer.first_time))
 
     if not in_time_proximity(buffer.first_time, ts.dtime)\
        and buffer.first_time > ts.dtime:
@@ -336,9 +292,13 @@ def check_timestamp(buffer: Buffer, tss: TimeStamps) -> Tuple[bool, Buffer]:
     return(False, Buffer(new_buffer))
 
 
+
 def process_log_file(log_path: str, writer: Writer, ts: TimeStamp) -> None:
+    youger_than_ts = False
+
     for buffer in buffer_generator(log_path):
-        buffer = check_timestamp(buffer, ts)
+        if not youger_than_ts:
+            youger_than_ts, buffer = check_timestamp(buffer, ts)
         writer.append(buffer)
 
 
