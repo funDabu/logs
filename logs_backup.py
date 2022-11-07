@@ -4,7 +4,6 @@ import os
 import sys
 import datetime as dt
 import re
-import json
 
 
 """
@@ -63,10 +62,11 @@ class Buffer:
         return self._lines[self._head_i + start: end + 1]
 
     def pop_left(self, n: int = 1) -> Optional[str]:
-        if self.__locked or self.__len__() < n:
+        if self.__locked or n < 1:
             return
 
-        self._head_i += n
+        new_head = min(self._head_i + n, self._head_i + self.__len__())
+        self._head_i = new_head
         self.__set_first()
         return self._lines[self._head_i - 1]
 
@@ -78,7 +78,7 @@ class Buffer:
         n = self._end_i if n == -1 else n
 
         if self._head_i <= n <= self._end_i:
-            return self._lines(n)
+            return self._lines[n]
         return default
 
     def __iter__(self) -> "Buffer":
@@ -115,7 +115,11 @@ class TimeStamp:
 
     @classmethod
     def from_json(cls, data: str) -> "TimeStamp":
-        time = get_time(data)
+        if data == "":
+            time = dt.datetime.strptime("01/Jan/1980:00:00:00 +0000",
+                                        LOG_DT_FORMAT)
+        else:
+            time = get_time(data)
         return cls(time, data)
 
     def to_json(self) -> str:
@@ -131,11 +135,12 @@ class Reporter:
         orig_len = self.buffer_size if orig_len < 0 else orig_len
 
         assert orig_len - len(buffer) >= 0
+        # print(f"just eliminated {orig_len - len(buffer)} lines") # DEBUG
         self.eliminated_lines_count += orig_len - len(buffer)
     
     def report(self, output: TextIO = sys.stderr) -> None:
         print("Number of eliminated lines so far:",
-               self.count_eliminated_line,
+               self.eliminated_lines_count,
                file=output)
 
 class Writer:
@@ -170,7 +175,7 @@ class Writer:
         # could be multithreaded
 
         sorted_out_data = sorted(self._out_data.items(), key=lambda x: x[0])
-        last_log: str
+        last_log: Optional[str] = None
 
         for (year, month), buffers in sorted_out_data:
             f_name = log_file_name(year,
@@ -183,7 +188,7 @@ class Writer:
                         f.write(line)
                     last_log = buffer.get(-1)
         
-        if ts is not None:
+        if ts is not None and last_log is not None:
             ts.log_entry = last_log
             ts.update_time()
 
@@ -263,7 +268,7 @@ def count_while_general(buffer: Buffer,
 
 def in_time_proximity(time1: dt.datetime, time2: dt.datetime,
                       time_range=TIME_PROXI_RANGE) -> bool:
-    return abs(time1 - time2) <= dt.timedelta(seconds=range)
+    return abs(time1 - time2) <= dt.timedelta(seconds=time_range)
 
 
 def signif_older(test_time: dt.datetime,
@@ -288,15 +293,23 @@ def check_timestamp(buffer: Buffer, ts: TimeStamp) -> Tuple[bool, Buffer]:
 
     if not in_time_proximity(buffer.first_time, ts.dtime)\
        and buffer.first_time > ts.dtime:
+        # print("signif younger") # DEBUG
         return (True, buffer)  # significantly younger than ts
 
     if signif_older(buffer.last_time, ts.dtime):
+        # print("signif older") # DEBUG
+
         return (False, Buffer([]))
 
     new_buffer = []
     for i, line in enumerate(buffer):
         if line == ts.log_entry:
+            buffer.stop_iter()
             buffer.pop_left(i + 1)
+
+            # print("timestamp found on buffer index", i) # DEBUG
+            # print(len(buffer)) # DUBUG
+
             return (True, buffer)
 
         time = get_time(line)
@@ -306,6 +319,7 @@ def check_timestamp(buffer: Buffer, ts: TimeStamp) -> Tuple[bool, Buffer]:
             new_buffer.append(line)
 
     # timestap was not found
+    # print("timestamp not found") # DEBUG
     return(False, Buffer(new_buffer))
 
 
