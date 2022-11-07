@@ -4,6 +4,7 @@ import os
 import sys
 import datetime as dt
 import re
+import gzip
 
 
 """
@@ -226,7 +227,12 @@ def get_last_sec_in_year(year: int, tzinfo: Optional[dt.tzinfo] = None) -> dt.da
 
 
 def buffer_generator(input_path: str, buffer_size: int = 1000) -> Iterator[Buffer]:
-    with open(input_path, "r") as input:
+    if input_path.split(".")[-1] == "gz":
+        open_func = gzip.open
+    else:
+        open_func = open
+
+    with open_func(input_path, "rt") as input:
         buffer = []
 
         for line in input:
