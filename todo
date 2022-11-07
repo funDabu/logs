@@ -1,9 +1,26 @@
-- opravit rozlisovani botu - viz tabulka top stahovacu
-- zprovoznit load na athene
+## Zadane
+### Urgentni
+- vytvorit script na tvorbu a update zalohy logu
+    - zkopirovat vse po mesicich, pak linux sort - DONE
+    - zkopirovat vse +- timestamp
+        - filtrovat signifikatne starsi
+        - pamatovat prekroceni timestampu
+    - moznost nesekvecne poskladanych logu na vstupu
+    - multitreding
+
+- zacit tvorit statistiky pro logy a davat to do public-html
+
+### Ostatni
+- vytvorik cmake script na pretvoreni statistik, je-li modifikovan log
+
+
+
+## Vhodne
+### Urgentni
+- Udelat system v adresari
+### Ostatni
 - pridat tabulku outliers do picture_overview
 - ?? půměrná a maximmální doba trvání session pro stahovače ??
 - promyslet formáty dat
+- zipovat exportovana data
 - osamostatnit print stats
-- ukládání do SQLite
-- konfigurák na boty a CGI script
-- mrknout jak funguje chron
