@@ -121,6 +121,23 @@ class TimeStamp:
     def to_json(self) -> str:
         return self.log_entry 
 
+class Reporter:
+    def __init__(self, buffer_size = 1000) -> None:
+        self.eliminated_lines_count = 0
+        self.buffer_size = buffer_size
+        return
+    
+    def count_eliminated_line(self, buffer:Buffer, orig_len: int = -1) -> None:
+        orig_len = self.buffer_size if orig_len < 0 else orig_len
+
+        assert orig_len - len(buffer) >= 0
+        self.eliminated_lines_count += orig_len - len(buffer)
+    
+    def report(self, output: TextIO = sys.stderr) -> None:
+        print("Number of eliminated lines so far:",
+               self.count_eliminated_line,
+               file=output)
+
 class Writer:
     def __init__(self, dir_path: str, log_name: str) -> None:
         self.__dir_path = os.path.realpath(dir_path)
@@ -296,10 +313,18 @@ def check_timestamp(buffer: Buffer, ts: TimeStamp) -> Tuple[bool, Buffer]:
 def process_log_file(log_path: str, writer: Writer, ts: TimeStamp) -> None:
     youger_than_ts = False
 
+    reporter = Reporter()
+
     for buffer in buffer_generator(log_path):
+        orig_buffer_len = len(buffer)
+
         if not youger_than_ts:
             youger_than_ts, buffer = check_timestamp(buffer, ts)
+        
+        reporter.count_eliminated_line(buffer, orig_buffer_len)
         writer.append(buffer)
+    
+    reporter.report()
 
 
 """
