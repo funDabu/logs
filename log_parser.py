@@ -1,6 +1,6 @@
 import re
 
-from typing import List, Callable, TextIO, Iterator
+from typing import  Callable, TextIO, Iterator
 
 from constants import LOG_ENTRY_REGEX
 RE_PROG_ENTRY = re.compile(LOG_ENTRY_REGEX)
@@ -28,6 +28,7 @@ class Log_entry:
 
 
 def parse_log_entry(entry: str) -> Log_entry:
+    # old slow version, not currently used
     end = None
     skip = False
     growing = []
@@ -66,6 +67,8 @@ def parse_log_entry(entry: str) -> Log_entry:
 
 
 def general_parse_entry_with_regex(line: str, re_prog) -> Log_entry:
+    # re_prog is compiled re.Pattern object
+
     result = Log_entry()
     match = re_prog.search(line)
 
@@ -84,24 +87,22 @@ def parse_entry_with_regex(line: str) -> Log_entry:
 
 
 def regex_parser(input: TextIO, 
-                 buffer_size: int = 1000,
-                 parse_with_re: bool = True) -> Iterator[Log_entry]:
+                 buffer_size: int = 1000)\
+        -> Iterator[Log_entry]:
         
     buffer = []
     i = 0
-    parse_func: Callable[[str], Log_entry] =\
-        parse_entry_with_regex if parse_with_re else parse_log_entry
 
     for line in input:
         buffer.append(line)
         i += 1
         if i == buffer_size:
-            yield map(parse_func, buffer)
+            yield map(parse_entry_with_regex, buffer)
             buffer = []
             i = 0
         
     if i > 0:
-        yield map(parse_func, buffer)
+        yield map(parse_entry_with_regex, buffer)
 
 
 #######################
@@ -149,10 +150,6 @@ def test_re_parse():
 def test_compare():
     import time
     import sys 
-
-    # Python 3.7 and newer
-    # https://stackoverflow.com/questions/16549332/python-3-how-to-specify-stdin-encoding
-    # sys.stdin.reconfigure(encoding='utf-8')
 
     i = 1
     time1 = time.time()

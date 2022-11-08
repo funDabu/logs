@@ -8,7 +8,7 @@ import random
 import requests
 import time
 import json, re
-from log_parser import Log_entry, parse_log_entry, parse_entry_with_regex, regex_parser
+from log_parser import Log_entry, parse_entry_with_regex, regex_parser
 from html_maker import Html_maker, make_table
 from typing import List, TextIO, Optional, Tuple, Dict, Set, Callable
 
@@ -64,7 +64,7 @@ def strp_date(date: str, format: str) -> datetime.date:
 
 def get_bot_url(user_agent: str) -> str:
     # if "user agent" field of the log entry doesn't contain
-    # bot's url, return empty string
+    #   bot's url, returns empty string
     match = RE_PROG_BOT_URL.search( user_agent)
     if match is None:
         return ""
@@ -72,8 +72,8 @@ def get_bot_url(user_agent: str) -> str:
 
 
 def determine_bot(entry:Log_entry, *args: Callable[[Log_entry], bool]) -> Tuple[bool, str]:
-    # returns: - [True, bot_url] if stat is classified as botbased on url in user_agent,
-    #          - [True, ""] when bot calssified based on predicate in *args,
+    # returns: - [True, bot_url] if stat is classified as bot based on url in user_agent,
+    #          - [True, ""] when bot classified based on predicate in *args,
     #          - [False, ""]  otherwise
 
     match = RE_PROG_BOT_URL.search(entry.user_agent)
@@ -259,17 +259,21 @@ class Stat_struct:
 
 class Log_stats:
     def __init__(self, input: Optional[TextIO] = None, err_msg=False, config_f=None):
-        self.bots = Stat_struct()
-        self.people = Stat_struct()
+        self.bots = Stat_struct() # for curretnt year
+        self.people = Stat_struct() # for curretnt year
         self.err_msg = err_msg
 
         self.daily_data: Dict[datetime.date, Tuple[Set[str], int, int]] = {}
         # ^: date -> (unique_ips, requests_number, people_session_number)
+        # ^: for picture overview
+
         self.year_stats: Dict[int, Tuple(Stat_struct, Stat_struct)] = {}
-        # ^: year -> (bots, people)
+        # ^: year -> (bots, people); contains all Stat_structs
+
         self.current_year = None
 
         if config_f is not None:
+            # concfig file contains IP adresses considered as bots
             self.initialize_bot_set(config_f)
         else:
             self.bots_set = set()
@@ -357,7 +361,7 @@ class Log_stats:
     
     def initialize_bot_set(self, config_file_path: str) -> None:
         with open(config_file_path, "r") as f:
-            self.bots_set = set([ ip_addr for ip_addr in f ])
+            self.bots_set = set(ip_addr for ip_addr in f)
 
     def make_stats_with_buffer_parser(self, input: TextIO):
         if self.err_msg:
@@ -377,7 +381,8 @@ class Log_stats:
         # save current year in case it's not already saved
         self._switch_years(self.current_year)
 
-    def make_stats_without_parser(self, input: TextIO):
+    def make_stats_without_buffer(self, input: TextIO):
+        # not currently used, not clear if is really slower than make_stats_with_buffer
         if self.err_msg:
             timer = Ez_timer("Data parsing and proccessing")
 
@@ -397,7 +402,7 @@ class Log_stats:
         self._switch_years(self.current_year)
     
     def make_stats(self, input: TextIO):
-        # self.make_stats_without_parser(input)
+        # self.make_stats_without_buffer(input)
         self.make_stats_with_buffer_parser(input)
 
     def _add_entry(self, entry: Log_entry):
@@ -407,17 +412,18 @@ class Log_stats:
 
         is_bot, bot_url = determine_bot(entry, lambda x: x.ip_addr in self.bots_set)
 
+        entry_key = bot_url if is_bot and len(bot_url) > 0\
+                    else entry.ip_addr
         stat_struct = self.bots if is_bot else self.people
-        key = bot_url if bot_url else entry.ip_addr
 
-        ip_stat = stat_struct.stats.get(key)
+        ip_stat = stat_struct.stats.get(entry_key)
         if ip_stat is None:
-            ip_stat = Ip_stats(entry, bot_url=bot_url)
+            ip_stat = Ip_stats(entry, is_bot, bot_url)
             
         new_sess = ip_stat.add_entry(entry)
-        # ^ 1 if new session was created, 0 otherwise
+        # ^: 1 if new session was created, 0 otherwise
 
-        stat_struct.stats[key] = ip_stat
+        stat_struct.stats[entry_key] = ip_stat
         stat_struct.day_req_distrib[ip_stat.datetime.hour] += 1
         stat_struct.week_req_distrib[ip_stat.datetime.weekday()] += 1
         stat_struct.month_req_distrib[(ip_stat.datetime.year, ip_stat.datetime.month)] += 1
@@ -426,7 +432,7 @@ class Log_stats:
         stat_struct.month_sess_distrib[(
             ip_stat.datetime.year, ip_stat.datetime.month)] += new_sess
 
-        # making daily_data for the picture
+        # making daily_data for picture overview
         date = ip_stat.datetime.date()
         ip_addrs, req_num, sess_num = self.daily_data.get(date, (set(), 0, 0))
         ip_addrs.add(ip_stat.ip_addr)
@@ -1066,13 +1072,13 @@ class Log_stats:
             self.splited_data_info(request_data, r_delims, html)
 
             # top users
-            self._print_most_frequent(html,
-                                        sorted(stats, key=lambda x: x.requests_num, reverse=True),
-                                        sorted(stats, key=lambda x: x.sessions_num, reverse=True),
-                                        bots=False,
-                                        selected="selected",
-                                        host_name=False
-                                        )
+            self._print_most_frequent(
+                html,
+                sorted(stats, key=lambda x: x.requests_num, reverse=True),
+                sorted(stats, key=lambda x: x.sessions_num, reverse=True),
+                bots=False,
+                selected="selected",
+                host_name=False)
 
         plt.close('all')
 
@@ -1109,6 +1115,7 @@ class Log_stats:
         if html is None:
             return categories
 
+        # here follows the small table :D
         tot = sum(categories_sums)
 
         content = [ 

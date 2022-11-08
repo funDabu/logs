@@ -1,12 +1,11 @@
 ## Zadane
 ### Urgentni
-- vytvorit script na tvorbu a update zalohy logu
+- vytvorit script na tvorbu a update zalohy logu - DONE
     - zkopirovat vse po mesicich, pak linux sort - DONE
-    - zkopirovat vse +- timestamp
+    - zkopirovat vse +- timestamp - DONE
         - filtrovat signifikatne starsi
         - pamatovat prekroceni timestampu
-    - moznost nesekvecne poskladanych logu na vstupu
-    - multitreding
+    
 
 - zacit tvorit statistiky pro logy a davat to do public-html
 
@@ -20,7 +19,10 @@
 - Udelat system v adresari
 ### Ostatni
 - pridat tabulku outliers do picture_overview
-- ?? půměrná a maximmální doba trvání session pro stahovače ??
-- promyslet formáty dat
 - zipovat exportovana data
 - osamostatnit print stats
+- ?? půměrná a maximmální doba trvání session pro stahovače ??
+- promyslet formáty dat
+- logs_backup:
+    - moznost nesekvecne poskladanych logu na vstupu
+    - multitreding
