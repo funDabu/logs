@@ -1,4 +1,3 @@
-from asyncore import write
 from constants import TIME_REGEX, DT_FORMAT, LOG_DT_FORMAT
 import argparse
 import os
@@ -47,7 +46,7 @@ class Buffer:
             self.__set_last()
 
     def __set_first(self) -> None:
-        if self._head_i >= self.__len__():
+        if self._head_i > self._end_i:
             self.first_time = None
             return
 
@@ -365,7 +364,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> int:
+def main():
     args = parse_args()
 
     dir_path = DIR_PATH if args.dir_path is None else args.dir_path
