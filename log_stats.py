@@ -1115,7 +1115,7 @@ class Log_stats:
         if html is None:
             return categories
 
-        # here follows the small table :D
+        # here follows the small table
         tot = sum(categories_sums)
 
         content = [ 

@@ -1,9 +1,10 @@
 from typing import List, Optional, Iterable, Callable
-import sys
+import os
 
-DEF_TEMPLATE = "html_template.html"
-DEF_CSS = "style.css"
-DEF_JS = "js.js"
+FILE_DIR = os.path.dirname(__file__) 
+DEF_TEMPLATE = f"{FILE_DIR }/html_template.html"
+DEF_CSS = f"{FILE_DIR }/style.css"
+DEF_JS = f"{FILE_DIR }/js.js"
 class Html_maker:
     __slots__ = ("content", "template", "css", "js", "_id")
 
