@@ -1,3 +1,4 @@
+from asyncore import write
 from constants import TIME_REGEX, DT_FORMAT, LOG_DT_FORMAT
 import argparse
 import os
@@ -285,27 +286,22 @@ def signif_older(test_time: dt.datetime,
            and test_time < timestamp
 
 
+def signif_younger(test_time: dt.datetime,
+                   timestamp: dt.datetime,
+                   time_range: int = TIME_PROXI_RANGE)\
+        -> bool:
+    return not in_time_proximity(test_time, timestamp, time_range)\
+           and test_time > timestamp
+
+
 def check_timestamp(buffer: Buffer, ts: TimeStamp) -> Tuple[bool, Buffer]:
     # return [True, buffer] if 
-    #   - timestamp was found, 
-    #       than buffer contains only entries younfer than the ts
-    #   - first entry is significantly younger than timestamp,
-    #       than buffer contains all entries
-    # retrurns [False, buffer] otherwise
-    #   - buffer is empty if its last entry is signif. older than timestamp
-    #   - otherwise siginf. older values are filtered from buffer one by one 
+    #   - timestamp was found and
+    #       buffer contains only entries younfer than the ts
+    # returns [False, buffer] otherwise,
+    #   siginf. older values are filtered from buffer one by one 
     # 
     # siginficatnly younger means its time is after timestamp + TIME_PROXI_RANGE
-
-    if not in_time_proximity(buffer.first_time, ts.dtime)\
-       and buffer.first_time > ts.dtime:
-        # print("signif younger") # DEBUG
-        return (True, buffer)  # significantly younger than ts
-
-    if signif_older(buffer.last_time, ts.dtime):
-        # print("signif older") # DEBUG
-
-        return (False, Buffer([]))
 
     new_buffer = []
     for i, line in enumerate(buffer):
@@ -331,15 +327,20 @@ def check_timestamp(buffer: Buffer, ts: TimeStamp) -> Tuple[bool, Buffer]:
 
 
 def process_log_file(log_path: str, writer: Writer, ts: TimeStamp) -> None:
-    youger_than_ts = False
+    ts_reached = False
 
     reporter = Reporter()
 
     for buffer in buffer_generator(log_path):
         orig_buffer_len = len(buffer)
 
-        if not youger_than_ts:
-            youger_than_ts, buffer = check_timestamp(buffer, ts)
+        if not ts_reached:
+            if signif_younger(buffer.first_time, ts):
+                ts_reached = True
+            elif signif_older(buffer.last_time, ts):
+                buffer = Buffer([])
+            elif check_timestamp(buffer, ts):
+                writer.clear()
         
         reporter.count_eliminated_line(buffer, orig_buffer_len)
         writer.append(buffer)
