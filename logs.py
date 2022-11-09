@@ -113,6 +113,10 @@ def make_log_stats(log_stats: Log_stats, options, selected: bool):
             file.write(f"<h1>{options.name}</h1>\n")
         if options.pic_overview:
             file.write(OVERVIEW)
+        if options.hist:
+            file.write("<h2>Histogram</h2>\n")
+            file.write(f"<li><a href='_hist.html'> Histogram </a></li>\n")
+
 
         file.write("<h2>Statistics per year</h2>\n")
         file.write("<ul>\n")
