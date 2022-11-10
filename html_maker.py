@@ -75,9 +75,9 @@ def decore_table_row(func: Callable[..., str]) -> str:
 
 @decore_table_row
 def make_table_header(content: Iterable[str]):
-    return "<th>"\
+    return "<thead>\n<th>"\
            + "</th>\n<th>".join(map(str, content))\
-           + "</th>"
+           + "</th>\n</thead>"
 
 
 @decore_table_row
@@ -98,9 +98,9 @@ def make_table(caption: str,
     return f"<table {id_attr} {class_atrib}>\n"\
            f"<caption>{caption}</caption>\n"\
            + make_table_header(header)\
-           + "\n"\
+           + "\n<tbody>\n"\
            + "\n".join(make_table_row(row) for row in content)\
-           + "\n</table>"
+           + "\n</tbody>\n</table>"
 
 
 def make_selection_button(target_class: str,

@@ -333,7 +333,7 @@ def process_log_file(log_path: str, writer: Writer, ts: TimeStamp) -> None:
     for buffer in buffer_generator(log_path):
         orig_buffer_len = len(buffer)
 
-        if not ts_reached:
+        if not ts_reached and len(buffer) > 0:
             if signif_younger(buffer.first_time, ts.dtime):
                 ts_reached = True
             elif signif_older(buffer.last_time, ts.dtime):
