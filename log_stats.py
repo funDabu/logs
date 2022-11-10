@@ -1003,8 +1003,10 @@ class Log_stats:
     def print_histogram(self, file_name: str):
         # For people only!!
 
+        with open("hist.js", "r") as f:
+            js = f.read()
         template = "<html><head><style>{css}</style> <script>{js}</script></head>\n<body>\n{content}\n</body>\n</html>"
-        html = Html_maker(template)
+        html = Html_maker(template, js = js)
 
 
         for year in sorted(self.year_stats.keys()):
