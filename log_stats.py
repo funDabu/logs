@@ -1,5 +1,5 @@
 from collections import Counter
-import sys
+import sys, os
 import socket
 import datetime
 import matplotlib.pyplot as plt
@@ -1003,7 +1003,7 @@ class Log_stats:
     def print_histogram(self, file_name: str):
         # For people only!!
 
-        with open("hist.js", "r") as f:
+        with open(f"{os.path.dirname(__file__)}/hist.js", "r") as f:
             js = f.read()
         template = "<html><head><style>{css}</style> <script>{js}</script></head>\n<body>\n{content}\n</body>\n</html>"
         html = Html_maker(template, js = js)
