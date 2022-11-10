@@ -68,7 +68,7 @@ def decore_table_row(func: Callable[..., str]) -> str:
     def decoreated(*args, **kwargs):
         return "<tr>\n"\
                + func(*args, **kwargs)\
-               + "\n</n>"
+               + "\n</tr>"
     
     return decoreated
 
