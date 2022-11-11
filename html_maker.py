@@ -75,9 +75,9 @@ def decore_table_row(func: Callable[..., str]) -> str:
 
 @decore_table_row
 def make_table_header(content: Iterable[str]):
-    return "<thead>\n<th>"\
+    return "<th>"\
            + "</th>\n<th>".join(map(str, content))\
-           + "</th>\n</thead>"
+           + "</th>"
 
 
 @decore_table_row
@@ -96,9 +96,9 @@ def make_table(caption: str,
     class_atrib = f"class='{' '.join(classes)}'" if classes else ""
 
     return f"<table {id_attr} {class_atrib}>\n"\
-           f"<caption>{caption}</caption>\n"\
+           f"<caption>{caption}</caption>\n<thead>\n"\
            + make_table_header(header)\
-           + "\n<tbody>\n"\
+           + "\n</thead>\n<tbody>\n"\
            + "\n".join(make_table_row(row) for row in content)\
            + "\n</tbody>\n</table>"
 
