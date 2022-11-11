@@ -876,9 +876,11 @@ class Log_stats:
         if sample_size <= 0:
             return
 
-        data = self.people
+        # Filter out ips with number of sessions greater than 50
+        def filter_f(stat: Ip_stats) -> bool:
+            return stat.sessions_num <= 50
+        sample: List[Ip_stats] = list(filter(filter_f, self.people.stats.values()))
 
-        sample: List[Ip_stats] = list(data.stats.values())
         sample_size = min(len(sample),
                           sample_size)
 
