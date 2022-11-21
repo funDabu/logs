@@ -1,14 +1,18 @@
 import sqlite3
+import os, sys
 import datetime as dt
 from typing import Optional, Tuple
 
-from constants import DATE_FORMAT
+from constants import DATE_FORMAT, GEOLOC_DB_PATH
 
 class GeolocDB:
-    def __init__(self, path: str):
+    def __init__(self, path: str = GEOLOC_DB_PATH):
         self._path = path
         self.__cur = None
         self.__con = None
+
+        path = os.path.realpath(path)
+        self.conntect()
 
     def conntect(self):
         self.__con = sqlite3.connect(self._path)
@@ -16,6 +20,10 @@ class GeolocDB:
 
         if self._is_empty():
             self._create_geoloc_table()
+    
+    def close(self):
+        if self.__con is not None:
+            self.__con.close()
 
     def _is_empty(self):      
         res = self.__cur.execute("SELECT name FROM sqlite_master WHERE name='geolocations'")

@@ -11,6 +11,7 @@ import json, re
 from log_parser import Log_entry, parse_entry_with_regex, regex_parser
 from html_maker import Html_maker, make_table
 from typing import List, TextIO, Optional, Tuple, Dict, Set, Callable
+from geoloc_db import GeolocDB
 
 
 """
@@ -55,17 +56,18 @@ class Ez_timer:
 
 
 """
-========== STATISTICS ==========
+========== FUNCTIONS ==========
 """
 
 def strp_date(date: str, format: str) -> datetime.date:
     dt = datetime.datetime.strptime(date, format)
     return dt.date()
 
+
 def get_bot_url(user_agent: str) -> str:
     # if "user agent" field of the log entry doesn't contain
     #   bot's url, returns empty string
-    match = RE_PROG_BOT_URL.search( user_agent)
+    match = RE_PROG_BOT_URL.search(user_agent)
     if match is None:
         return ""
     return match.group(1)
@@ -87,10 +89,21 @@ def determine_bot(entry:Log_entry, *args: Callable[[Log_entry], bool]) -> Tuple[
     return (False, "")
 
 
+def anotate_bars(xs: List[float], ys: List[float], labels: List[int], rotation: int):
+    for i, x in enumerate(xs):
+        plt.annotate(str(labels[i]), (x, ys[i]),
+                     rotation=rotation, horizontalalignment='center')
+
+"""
+========== CLASSES ==========
+"""
+
 class Ip_stats:
     geoloc_tokens = None # www.geoplugin.net api oficial limit is 120 requsts/min
     last_geoloc_ts = time.time()
     session = requests.Session()
+
+    database = GeolocDB()
 
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "datetime")
@@ -144,7 +157,12 @@ class Ip_stats:
 
     def update_geolocation(self):
         token_max = 3
-        sleep_time = 2 # sec 
+        sleep_time = 2 # sec
+
+        val = Ip_stats.database.get_geolocation(self.ip_addr)
+        if val is not None:
+            self.geolocation, _ = val
+            return
 
         if Ip_stats.geoloc_tokens is None\
            or Ip_stats.last_geoloc_ts - time.time() > sleep_time:
@@ -158,6 +176,8 @@ class Ip_stats:
         Ip_stats.geoloc_tokens -= 1
         Ip_stats.last_geoloc_ts = time.time()
         self._geoplugin_call()
+
+        Ip_stats.database.insert_geolocation(self.ip_addr, self.geolocation)
 
     def _geoplugin_call(self):
         try:
@@ -184,12 +204,6 @@ class Ip_stats:
     def _from_json(self, js):
         for slot in self.__slots__:
             self._set_attr(slot, js[slot])
-
-
-def anotate_bars(xs: List[float], ys: List[float], labels: List[int], rotation: int):
-    for i, x in enumerate(xs):
-        plt.annotate(str(labels[i]), (x, ys[i]),
-                     rotation=rotation, horizontalalignment='center')
 
 
 class Stat_struct:

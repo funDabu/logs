@@ -19,3 +19,8 @@ DATE_FORMAT = "%Y-%m-%d"
 MONTHS = ["Error", "Jan", "Feb", "Mar", "Apr", "May",
           "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 DAYS = ["Mon", "Tue", "Wed", "Thr", "Fri", "Sat", "Sun"]
+
+"""
+========== PATHS ==========
+"""
+GEOLOC_DB_PATH = "."
