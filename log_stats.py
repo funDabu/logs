@@ -88,10 +88,9 @@ def determine_bot(entry:Log_entry, *args: Callable[[Log_entry], bool]) -> Tuple[
 
 
 class Ip_stats:
-    first_api_req_ts = None
-    free_geolocations = 110  # www.geoplugin.net api oficial limit is 120 requsts/min
+    geoloc_tokens = None # www.geoplugin.net api oficial limit is 120 requsts/min
+    last_geoloc_ts = time.time()
     session = requests.Session()
-    re_prog_bot_url = re.compile(BOT_URL_REGEX)
 
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "datetime")
@@ -130,7 +129,6 @@ class Ip_stats:
             self.host_name = "Unknown"
 
     def add_entry(self, entry: Log_entry) -> int:
-        # <entry> is line from log parsed with <parse_log_entry> function
         # Returns 1 if <entry> is a new session, 0 otherwise
         rv = 0
         dt = datetime.datetime.strptime(entry.time, LOG_DT_FORMAT)
@@ -145,31 +143,20 @@ class Ip_stats:
         return rv
 
     def update_geolocation(self):
-        self._safer_geolocation()
+        token_max = 3
+        sleep_time = 2 # sec 
 
-    def _safer_geolocation(self):
-        # sleeps 2 sec after every 3 requests (~ 90 req / min)
-        self._geolocate(3, lambda: 2)
+        if Ip_stats.geoloc_tokens is None\
+           or Ip_stats.last_geoloc_ts - time.time() > sleep_time:
 
-    def _efficient_geolocation(self):
-        # do not use !! You will get blacklisted
-        self._geolocate(110, lambda: max(
-            0, (60 + Ip_stats.first_api_req_ts - time.time())))
+            Ip_stats.geoloc_tokens = token_max
+        
+        if not Ip_stats.geoloc_tokens:
+            time.sleep(sleep_time)
+            Ip_stats.geoloc_tokens = token_max
 
-    def _geolocate(self, token_max, get_sleep_time):
-        if Ip_stats.first_api_req_ts is None or\
-           time.time() - Ip_stats.first_api_req_ts > 60:
-            Ip_stats.first_api_req_ts = time.time()
-            Ip_stats.free_geolocations = token_max
-
-        if not Ip_stats.free_geolocations:
-            # print(f"sleep for {get_sleep_time()}", file=sys.stderr)
-            time.sleep(get_sleep_time())
-            Ip_stats.first_api_req_ts = time.time()
-            Ip_stats.free_geolocations = token_max
-
-        Ip_stats.free_geolocations -= 1
-        # print(f"calling api", file=sys.stderr)
+        Ip_stats.geoloc_tokens -= 1
+        Ip_stats.last_geoloc_ts = time.time()
         self._geoplugin_call()
 
     def _geoplugin_call(self):

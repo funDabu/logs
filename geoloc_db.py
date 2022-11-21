@@ -26,6 +26,7 @@ class GeolocDB:
         self.__cur.execute("CREATE INDEX index_geolocations ON geolocations (ip)")
     
     def get_geolocation(self, ip: str) -> Optional[Tuple(str,str)]:
+        # Assumes only one row for a single ip address
         if self.__cur is None:
             self.conntect()
 
