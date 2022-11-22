@@ -55,8 +55,11 @@ def parse_options():
                        "has to be used together with --load option")
     parser.add_option("-C", "--config",
                   action="store", type="str", dest="config_f", default=None,
-                  help="specify the name of configuration file, "
-                       "ip addresses in config file will be clasified as bots")              
+                  help="specify the path of configuration file, "
+                       "ip addresses in config file will be clasified as bots")  
+    parser.add_option("-d", "--geoloc-database",
+                  action="store", type="str", dest="geoloc_db", default=None,
+                  help="specify the path of geolocation database")             
 
     options, _ = parser.parse_args()
     return options
@@ -79,7 +82,8 @@ def main():
         stats.print_stats(sys.stdout,
                           options.geoloc_ss,
                           selected=False,
-                          year=options.year)
+                          year=options.year,
+                          geoloc_db=options.geoloc_db)
     elif not options.clean:
         make_log_stats(stats, options, selected=False)
     
@@ -106,7 +110,7 @@ def make_log_stats(log_stats: Log_stats, options, selected: bool):
 
     for year in sorted(log_stats.year_stats.keys()):
         with open(f"{year}.html", "w") as file:
-            log_stats.print_stats(file, options.geoloc_ss, selected, year)
+            log_stats.print_stats(file, options.geoloc_ss, selected, year, geoloc_db=options.geoloc_db)
     
     with open("logs_index.html", "w") as file:
         if options.name is not None:

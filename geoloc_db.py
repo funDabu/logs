@@ -33,21 +33,30 @@ class GeolocDB:
         self.__cur.execute("CREATE TABLE geolocations(ip, geolocation, timestamp)")
         self.__cur.execute("CREATE INDEX index_geolocations ON geolocations (ip)")
     
-    def get_geolocation(self, ip: str) -> Optional[Tuple(str,str)]:
+    def get_geolocation(self, ip: str) -> Optional[Tuple[str,str]]:
         # Assumes only one row for a single ip address
         if self.__cur is None:
             self.conntect()
 
-        res = self.__cur.execute("SELECT geolocation, timestamp FROM geolocations WHERE ip='?'", ip)
+        res = self.__cur.execute("SELECT geolocation, timestamp FROM geolocations WHERE ip=?", [ip])
         return res.fetchone()
+    
+    def get_all(self) :
+        if self.__cur is None:
+            self.conntect()
+
+        res = self.__cur.execute("SELECT * FROM geolocations")
+        return res.fetchall()
+
 
     def insert_geolocation(self, ip:str, geolocation:str):
         if self.__cur is None:
             self.conntect()
 
         date = dt.date.today()
-        self.__cur.execute("INSERT INTO geolocations VALUES(?)",
+        self.__cur.execute("INSERT INTO geolocations VALUES(?, ?, ?)",
                            (ip, geolocation, date.__format__(DATE_FORMAT)))
+        self.__con.commit()
 
 
     

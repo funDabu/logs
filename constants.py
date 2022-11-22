@@ -23,4 +23,4 @@ DAYS = ["Mon", "Tue", "Wed", "Thr", "Fri", "Sat", "Sun"]
 """
 ========== PATHS ==========
 """
-GEOLOC_DB_PATH = "."
+GEOLOC_DB_PATH = "./_geoloc_db"

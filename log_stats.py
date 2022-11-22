@@ -103,7 +103,7 @@ class Ip_stats:
     last_geoloc_ts = time.time()
     session = requests.Session()
 
-    database = GeolocDB()
+    database = None
 
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "datetime")
@@ -156,13 +156,21 @@ class Ip_stats:
         return rv
 
     def update_geolocation(self):
-        token_max = 3
-        sleep_time = 2 # sec
+        if Ip_stats.database is None:
+            self.geolocate_with_api()
+            return
 
         val = Ip_stats.database.get_geolocation(self.ip_addr)
         if val is not None:
             self.geolocation, _ = val
             return
+
+        self.geolocate_with_api()
+        Ip_stats.database.insert_geolocation(self.ip_addr, self.geolocation)
+    
+    def geolocate_with_api(self):
+        token_max = 3
+        sleep_time = 2 # sec
 
         if Ip_stats.geoloc_tokens is None\
            or Ip_stats.last_geoloc_ts - time.time() > sleep_time:
@@ -176,8 +184,6 @@ class Ip_stats:
         Ip_stats.geoloc_tokens -= 1
         Ip_stats.last_geoloc_ts = time.time()
         self._geoplugin_call()
-
-        Ip_stats.database.insert_geolocation(self.ip_addr, self.geolocation)
 
     def _geoplugin_call(self):
         try:
@@ -453,9 +459,13 @@ class Log_stats:
                     output: TextIO,
                     geoloc_sample_size,
                     selected=True,
-                    year=None):
+                    year=None,
+                    geoloc_db:Optional[str]= None):
         if year is not None:
             self._switch_years(year)
+        
+        if geoloc_db is not None:
+            Ip_stats.database = GeolocDB(geoloc_db)
 
         html: Html_maker = Html_maker()
         if self.err_msg:
