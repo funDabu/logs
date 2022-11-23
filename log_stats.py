@@ -1132,13 +1132,19 @@ class Log_stats:
 
         # here follows the small table
         tot = sum(categories_sums)
+        content = []
+        prev = 0
 
-        content = [ 
-            [f"Less than {delims[i]}", categories_sums[i],
-             round(100*categories_sums[i]/tot, 1), len(categories[i]),
-             round(100*len(categories[i])/len(data), 1)] 
-                for i in range(len(delims))
-        ]
+        for i in range(len(delims)):
+            content.append(
+                [f"{prev} to {delims[i]}", 
+                 categories_sums[i], 
+                 round(100*categories_sums[i]/tot, 1),
+                 len(categories[i]), #unique ip addresess
+                 round(100*len(categories[i])/len(data), 1)] #unique ip addresess in %
+            )
+            prev = delims[i]
+
         content.append(
             [f"Above {delims[-1]}", categories_sums[-1],
              round(100*categories_sums[-1]/tot, 1), len(categories[-1]),
@@ -1149,6 +1155,6 @@ class Log_stats:
         )
         
         html.append(make_table(f"{data_name} splited",
-                               ["Category", "Sum", "Sum [%]", "Unique IPs", "Unique IPs [%]"],
+                               ["[from, to)", "Sum", "Sum [%]", "Unique IPs", "Unique IPs [%]"],
                                content))
         return categories
