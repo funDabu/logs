@@ -539,9 +539,9 @@ class Log_stats:
                                   sess_sorted_stats,
                                   False,
                                   selected)
-        self._print_day_distribution(html, True, selected)
-        self._print_week_distribution(html, True, selected)
-        self._print_month_distributions(html, True, selected)
+        self._print_day_distribution(html, False, selected)
+        self._print_week_distribution(html, False, selected)
+        self._print_month_distributions(html, False, selected)
 
     def _print_overview(self,
                         html: Html_maker,
