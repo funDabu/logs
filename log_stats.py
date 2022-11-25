@@ -1162,7 +1162,7 @@ class Log_stats:
             ["Total", tot, 100 , len(data), 100] 
         )
         
-        html.append(make_table(f"Cathegoriezed {data_name}",
+        html.append(make_table(f"Categoriezed {data_name}",
                                ["[from, to)", "Sum", "Sum [%]", "Unique IPs", "Unique IPs [%]"],
                                content))
         return categories
