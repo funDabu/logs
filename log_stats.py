@@ -1042,6 +1042,8 @@ class Log_stats:
             _, ax = plt.subplots()
             # ax.set_xticks(sorted(set([1000*i for i in range(7)] + s_delims)))
             ax.hist(session_data, bins=s_bins, log=True)
+            ax.set_xlabel("session count")
+            ax.set_ylabel("ip address count")
 
             with io.StringIO() as f:
                 plt.savefig(f, format="svg")
@@ -1051,6 +1053,8 @@ class Log_stats:
             _, ax = plt.subplots()
             sess_lesser_data = self.splited_data_info(session_data, [200])[0]
             ax.hist(sess_lesser_data, bins=s_bins, log=True)
+            ax.set_xlabel("sesison count")
+            ax.set_ylabel("ip address count")
 
             with io.StringIO() as f:
                 plt.savefig(f, format="svg")
@@ -1069,6 +1073,8 @@ class Log_stats:
             _, ax = plt.subplots()
             # ax.set_xticks(sorted(set([50000*i for i in range(5)] + r_delims)))
             ax.hist(request_data, bins=r_bins, log=True)
+            ax.set_xlabel("request count")
+            ax.set_ylabel("ip address count")
 
             with io.StringIO() as f:
                 plt.savefig(f, format="svg")
@@ -1078,6 +1084,8 @@ class Log_stats:
             _, ax = plt.subplots()
             req_lesser_data = self.splited_data_info(request_data, [600])[0]
             ax.hist(req_lesser_data, bins=s_bins, log=True)
+            ax.set_xlabel("request count")
+            ax.set_ylabel("ip address count")
 
             with io.StringIO() as f:
                 plt.savefig(f, format="svg")
@@ -1106,7 +1114,7 @@ class Log_stats:
                           data: List[int], 
                           delims: List[int], 
                           html: Optional[Html_maker]=None, 
-                          data_name="Data") -> List[List[int]] : 
+                          data_name="ip addresses") -> List[List[int]] : 
         # splits values in data into categories: i-th category contains values, such that
         #   delims[i-1] <= values < delims[i], 0th categoty is min val <= values < delims[0],
         #   last category is delims[-1] <= values <= max val
@@ -1154,7 +1162,7 @@ class Log_stats:
             ["Total", tot, 100 , len(data), 100] 
         )
         
-        html.append(make_table(f"{data_name} splited",
+        html.append(make_table(f"Cathegoriezed {data_name}",
                                ["[from, to)", "Sum", "Sum [%]", "Unique IPs", "Unique IPs [%]"],
                                content))
         return categories
