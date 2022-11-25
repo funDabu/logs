@@ -123,12 +123,15 @@ def make_pictures(stats: Union[Log_stats, str], load_json=False, output_json="")
         # make data form stats: Log_stats
         data_objects = sorted(stats.daily_data.items(), key=lambda x: x[0])
         data = {}
+        # values of data dict are in a format:
+        # Tuple[int, int, str] <=> (x_axis_step, value, date_string),
+        # where value is number of request/seesion in that day/month 
 
         # pure request count
         data["day_requests"] = list(
             map(lambda x: (base_step, x[1][1], x[0].isoformat()), data_objects))
         # DEBUG ^make it more readabel
-        # print(data["day_requests"]) #DEBUG
+        # print(data["dataday_requests"]) #DEBUG
         data["month_requests"] = day_to_month_data(data["day_requests"])
 
         # unique IP count
