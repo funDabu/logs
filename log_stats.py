@@ -1145,7 +1145,7 @@ class Log_stats:
 
         for i in range(len(delims)):
             content.append(
-                [f"{prev} to {delims[i]}", 
+                [f"{prev} to {delims[i]-1}", 
                  categories_sums[i], 
                  round(100*categories_sums[i]/tot, 1),
                  len(categories[i]), #unique ip addresess
