@@ -1036,7 +1036,7 @@ class Log_stats:
 
             # sessions
             html.append("<h3>Session histogram</h3>")
-            s_delims = [1, 2, 5, 10, 50, 100, 1000]
+            s_delims = [2, 5, 10, 50, 100, 1000]
             s_bins = 150
 
             _, ax = plt.subplots()
@@ -1067,7 +1067,7 @@ class Log_stats:
         
             # requests
             html.append("<h3>Requests histogram</h3>")
-            r_delims = [1, 2, 5, 10, 50, 100, 1000, 10000]
+            r_delims = [2, 5, 10, 50, 100, 1000, 10000]
             r_bins = 300
 
             _, ax = plt.subplots()
