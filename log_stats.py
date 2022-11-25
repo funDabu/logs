@@ -1163,6 +1163,6 @@ class Log_stats:
         )
         
         html.append(make_table(f"Categoriezed {data_name}",
-                               ["[from, to)", "Sum", "Sum [%]", "Unique IPs", "Unique IPs [%]"],
+                               ["Range  [from, to]", "Sum", "Sum [%]", "Unique IPs", "Unique IPs [%]"],
                                content))
         return categories

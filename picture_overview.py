@@ -131,7 +131,7 @@ def make_pictures(stats: Union[Log_stats, str], load_json=False, output_json="")
         data["day_requests"] = list(
             map(lambda x: (base_step, x[1][1], x[0].isoformat()), data_objects))
         # DEBUG ^make it more readabel
-        # print(data["dataday_requests"]) #DEBUG
+        # print(data["day_requests"]) #DEBUG
         data["month_requests"] = day_to_month_data(data["day_requests"])
 
         # unique IP count
