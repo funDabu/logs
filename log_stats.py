@@ -555,7 +555,6 @@ class Log_stats:
         html.append(make_table("Overview",
                                [header_str],
                                [[str(len(req_sorted_stats))]],
-                               classes=["indent_2"]
                                ))
 
     def _sort_stats(self,
@@ -575,45 +574,37 @@ class Log_stats:
         return (req_sorted_stats, sess_sorted_stats)
 
 
-# TODO: prepsat na jeden
-    def _people_iter(self, data: List[Ip_stats], n: int, host_name=True):
-        i = 0
+    def _ip_stats_iter(self, data: List[Ip_stats], n: int, bots: bool,  host_name=True):
         n = min(n, len(data))
-        while i < n:
+
+        for i in range(n):
             ip_stat = data[i]
-            if host_name:
+            if host_name and ip_stat.host_name == 'Unresolved':
                 ip_stat.update_host_name()
             if not ip_stat.geolocation:
                 ip_stat.update_geolocation()
+                
+            # yield a row
             yield [f"{i + 1}",
-                    ip_stat.ip_addr,
-                    ip_stat.host_name,
-                    ip_stat.geolocation,
-                    ip_stat.requests_num,
-                    ip_stat.sessions_num
-                    ]
-            i += 1
+                   ip_stat.bot_url if bots else ip_stat.ip_addr,
+                   ip_stat.get_short_host_name(),
+                   ip_stat.geolocation,
+                   ip_stat.requests_num,
+                   ip_stat.sessions_num
+                  ]
     
-    def _bots_iter(self, data: List[Ip_stats], n: int, host_name=True):
-        i = 0
+    def _attribs_for_most_freq_table_iter(self, data: List[Ip_stats], n: int):
         n = min(n, len(data))
-        while i < n:
-            ip_stat = data[i]
-            if host_name:
-                ip_stat.update_host_name()
-            yield [f"{i + 1}",
-                    ip_stat.bot_url,
-                    ip_stat.host_name,
-                    ip_stat.requests_num,
-                    ip_stat.sessions_num
-                    ]
-            i += 1
 
+        for i in range(n):
+            yield ["", "", f"title='{data[i].host_name}'", "", "", ""]
+
+    
     def _print_most_frequent(self,
                              html: Html_maker,
                              req_sorted_stats: List[Ip_stats],
                              sess_sorted_stats: List[Ip_stats],
-                             bots,
+                             bots: bool,
                              selected="",
                              host_name=True):
 
@@ -625,25 +616,28 @@ class Log_stats:
         if bots:
             group_name = "bots"
             header = ["Rank", "Bot's url", "Host name",
-                      "Requests count", "Sessions count"]
-            content_iter = self._bots_iter
+                      "Geolocation", "Requests count", "Sessions count"]
         else:
             group_name = "human users"
             header = ["Rank", "IP address", "Host name",
                       "Geolocation", "Requests count", "Sessions count"]
-            content_iter = self._people_iter
 
         html.append(make_table(f"Most frequent {group_name} by number of sessions",
                                header,
-                               content_iter(sess_sorted_stats, 20, host_name),
+                               self._ip_stats_iter(sess_sorted_stats, 20, host_name=host_name, bots=bots),
                                None,
-                               ["selectable", selected, uniq_classes[0]]))
+                               ["selectable", selected, uniq_classes[0]],
+                               self._attribs_for_most_freq_table_iter(sess_sorted_stats, 20)
+                              ))
 
         html.append(make_table(f"Most frequent {group_name} by number of requests",
                                header,
-                               content_iter(req_sorted_stats, 20, host_name),
+                               self._ip_stats_iter(req_sorted_stats, 20, host_name=host_name, bots=bots),
                                None,
-                               ["selectable", selected, uniq_classes[1]]))
+                               ["selectable", selected, uniq_classes[1]],
+                               self._attribs_for_most_freq_table_iter(req_sorted_stats, 20)
+                              ))
+
         html.append("</div>")
 
     def _print_day_distribution(self, html: Html_maker, bots, selected=""):

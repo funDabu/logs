@@ -93,19 +93,37 @@ def make_table_row(content: Iterable[str]):
            + "</td>"
 
 
+@decore_table_row
+def make_table_row_with_attribs(content: Iterable[str],
+                                td_attribs: Iterable[str]):
+    result = []
+
+    for td_data, attribs in zip(content, td_attribs):
+        result.append(f"<td {attribs}>{td_data}</td>")
+
+    return '\n'.join(result)
+
 def make_table(caption: str,
                header: Iterable[str],
                content: Iterable[Iterable[str]],
                id: Optional[str]=None,
-               classes: Optional[List[str]]=None ) -> str:
+               table_class: Optional[List[str]]=None,
+               td_attribs: Optional[Iterable[Iterable[str]]]= None
+              ) -> str:
     id_attr = f"id='{id}'" if id else ""
-    class_atrib = f"class='{' '.join(classes)}'" if classes else ""
+    table_clasess = f"class='{' '.join(table_class)}'" if table_class else ""
 
-    return f"<table {id_attr} {class_atrib}>\n"\
+    if td_attribs is None:
+        rows = (make_table_row(row_data) for row_data in content)
+    else:
+        rows = (make_table_row_with_attribs(row_data, attribs)\
+                    for row_data, attribs in zip(content, td_attribs))
+
+    return f"<table {id_attr} {table_clasess}>\n"\
            f"<caption>{caption}</caption>\n<thead>\n"\
            + make_table_header(header)\
            + "\n</thead>\n<tbody>\n"\
-           + "\n".join(make_table_row(row) for row in content)\
+           + "\n".join(rows)\
            + "\n</tbody>\n</table>"
 
 
