@@ -1012,7 +1012,7 @@ class Log_stats:
         plt.close(fig)
         plt.rcParams['figure.figsize'] = plt.rcParamsDefault['figure.figsize']
 
-    def print_histogram(self, file_name: str):
+    def make_histogram(self, file_name:str, selected:str = ""):
         # For people only!!
 
         with open(f"{os.path.dirname(__file__)}/hist.js", "r") as f:
@@ -1032,66 +1032,38 @@ class Log_stats:
                 request_data.append(stat.requests_num)
 
             html.append(f"<h2>Year {year}</h2>")
+            selected = "selected" if selected else ""
 
             # sessions
             html.append("<h3>Session histogram</h3>")
-            s_delims = [2, 5, 10, 50, 100, 1000]
-            s_bins = 150
+            uniq_classes = html.print_selection(["Full histogram", "Detailed histogram", "Table"],
+                                                [[selected]]*3)
+            html.append("<div class='flex-align-start'>")
 
-            _, ax = plt.subplots()
-            # ax.set_xticks(sorted(set([1000*i for i in range(7)] + s_delims)))
-            ax.hist(session_data, bins=s_bins, log=True)
-            ax.set_xlabel("session count")
-            ax.set_ylabel("ip address count")
-
-            with io.StringIO() as f:
-                plt.savefig(f, format="svg")
-                html.append(f.getvalue())
-            plt.clf()
-
-            _, ax = plt.subplots()
-            sess_lesser_data = self.splited_data_info(session_data, [200])[0]
-            ax.hist(sess_lesser_data, bins=s_bins, log=True)
-            ax.set_xlabel("sesison count")
-            ax.set_ylabel("ip address count")
-
-            with io.StringIO() as f:
-                plt.savefig(f, format="svg")
-                html.append(f.getvalue())
-            plt.clf()
-
-            self.splited_data_info(session_data, s_delims, html)
-
-
+            self._print_histogram_graphs(html=html,
+                                        data=session_data,
+                                        delims=[2, 5, 10, 50, 100, 1000],
+                                        bins=300,
+                                        cutoff_for_detail=300,
+                                        xlabel="Session count",
+                                        uniq_classes=uniq_classes)
+            html.append("</div>")
         
             # requests
             html.append("<h3>Requests histogram</h3>")
-            r_delims = [2, 5, 10, 50, 100, 1000, 10000]
-            r_bins = 300
+            uniq_classes = html.print_selection(["Full histogram", "Detailed histogram", "Table"],
+                                                [[selected]]*3)
+            html.append("<div class='flex-align-start'>")
 
-            _, ax = plt.subplots()
-            # ax.set_xticks(sorted(set([50000*i for i in range(5)] + r_delims)))
-            ax.hist(request_data, bins=r_bins, log=True)
-            ax.set_xlabel("request count")
-            ax.set_ylabel("ip address count")
-
-            with io.StringIO() as f:
-                plt.savefig(f, format="svg")
-                html.append(f.getvalue())
-            plt.clf()
-
-            _, ax = plt.subplots()
-            req_lesser_data = self.splited_data_info(request_data, [600])[0]
-            ax.hist(req_lesser_data, bins=s_bins, log=True)
-            ax.set_xlabel("request count")
-            ax.set_ylabel("ip address count")
-
-            with io.StringIO() as f:
-                plt.savefig(f, format="svg")
-                html.append(f.getvalue())
-            plt.clf()
-
-            self.splited_data_info(request_data, r_delims, html)
+            self._print_histogram_graphs(html=html,
+                                        data=request_data,
+                                        delims=[2, 5, 10, 50, 100, 1000, 10000],
+                                        bins=500,
+                                        cutoff_for_detail=800,
+                                        xlabel="Request count",
+                                        uniq_classes=uniq_classes,
+                                        selected=selected)
+            html.append("</div>")
 
             # top users
             self._print_most_frequent(
@@ -1099,21 +1071,57 @@ class Log_stats:
                 sorted(stats, key=lambda x: x.requests_num, reverse=True),
                 sorted(stats, key=lambda x: x.sessions_num, reverse=True),
                 bots=False,
-                selected="selected",
+                selected=selected,
                 host_name=False)
 
         plt.close('all')
 
-        
-
         with open(file_name, "w") as f:
             f.write(html.html())
+    
+
+    def _print_histogram_graphs(self,
+                              html: Html_maker,
+                              data: List[int],
+                              delims: List[int],
+                              bins: int,
+                              cutoff_for_detail: int,
+                              xlabel: str,
+                              uniq_classes=List[str],
+                              selected=""):
+
+            _, ax = plt.subplots()
+            ax.hist(data, bins=bins, log=True, histtype='stepfilled')
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel("Ip address count")
+            ax.set_title("Full histogram")
+
+            html.append(f"<div class='{uniq_classes[0]} selectable {selected}'>")
+            with io.StringIO() as f:
+                plt.savefig(f, format="svg")
+                html.append(f.getvalue())
+            html.append("</div>")
+
+            ax.set_xlim(left=-10, right=cutoff_for_detail)
+            ax.set_title("Detailed histogram")
+
+            html.append(f"<div class='{uniq_classes[1]} selectable {selected}'>")
+            with io.StringIO() as f:
+                plt.savefig(f, format="svg")
+                html.append(f.getvalue())
+            plt.clf()
+            html.append("</div>")
+
+            self.splited_data_info(data, delims, html, uniqe_class=uniq_classes[2], selected=selected)
+
 
     def splited_data_info(self, 
                           data: List[int], 
                           delims: List[int], 
                           html: Optional[Html_maker]=None, 
-                          data_name="ip addresses") -> List[List[int]] : 
+                          data_name="ip addresses",
+                          uniqe_class:str="",
+                          selected="") -> List[List[int]] : 
         # splits values in data into categories: i-th category contains values, such that
         #   delims[i-1] <= values < delims[i], 0th categoty is min val <= values < delims[0],
         #   last category is delims[-1] <= values <= max val
@@ -1161,7 +1169,9 @@ class Log_stats:
             ["Total", tot, 100 , len(data), 100] 
         )
         
+        html.append(f"<div class='{uniqe_class} selectable {selected}'>")
         html.append(make_table(f"Categoriezed {data_name}",
                                ["Range  [from, to]", "Sum", "Sum [%]", "Unique IPs", "Unique IPs [%]"],
                                content))
+        html.append("</div>")
         return categories

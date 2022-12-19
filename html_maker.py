@@ -60,10 +60,10 @@ class Html_maker:
         return uniq_classes
 
     def print_selection(self,
-                        text: str,
+                        texts: List[str],
                         classes: List[str])-> List[str] :
         self.append("<label class='selection_label'>Select:</label>\n")
-        return self.print_sel_buttons(text, classes)
+        return self.print_sel_buttons(texts, classes)
 
     def html(self) -> str:
         content = '\n'.join(self.content)

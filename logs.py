@@ -97,7 +97,7 @@ def main():
         make_pictures(stats)
 
     if options.hist:
-        stats.print_histogram("_hist.html")
+        stats.make_histogram("_hist.html", selected=False)
 
     if options.output_f is not None:
         stats.save(options.output_f)
@@ -105,8 +105,6 @@ def main():
 
 def make_log_stats(log_stats: Log_stats, options, selected: bool):
     make_pictures(log_stats)
-
-
 
     for year in sorted(log_stats.year_stats.keys()):
         with open(f"{year}.html", "w") as file:

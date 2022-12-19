@@ -31,6 +31,7 @@ caption {
     align-content: flex-start;
     flex-wrap: wrap;
     justify-content: center;
+    column-gap: 20px;
 }
 .flex-col-center {
     display: flex;
