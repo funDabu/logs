@@ -129,17 +129,22 @@ class Ip_stats:
 
         self.is_bot, self.bot_url = is_bot, bot_url
 
-    def update_host_name(self, precision: int = 3) -> None:
+    def update_host_name(self) -> None:
         try:
-            hostname = socket.gethostbyaddr(self.ip_addr)[0]
-            hostname = hostname.rsplit('.')
-            if len(hostname) > precision:
-                hostname = hostname[-precision:]
-
-            self.host_name = '.'.join(hostname)
-
+            self.host_name = socket.gethostbyaddr(self.ip_addr)[0]
         except:
             self.host_name = "Unknown"
+    
+    def get_short_host_name(self, precision: int = 3) -> str:
+        hostname = self.host_name
+        hostname = hostname.rsplit('.')
+
+        if len(hostname) > precision:
+            hostname = hostname[-precision:]
+
+        hostname = '.'.join(hostname)
+        return hostname
+
 
     def add_entry(self, entry: Log_entry) -> int:
         # Returns 1 if <entry> is a new session, 0 otherwise
@@ -549,7 +554,8 @@ class Log_stats:
                         req_sorted_stats: List[Ip_stats]) -> None:
         html.append(make_table("Overview",
                                [header_str],
-                               [[str(len(req_sorted_stats))]]
+                               [[str(len(req_sorted_stats))]],
+                               classes=["indent_2"]
                                ))
 
     def _sort_stats(self,
@@ -611,11 +617,10 @@ class Log_stats:
                              selected="",
                              host_name=True):
 
-        html.append('<h3>Most frequent</h3>\n<label>Select:</label>')
-
-        uniq_classes = html.print_sel_buttons(["session table", "requests table"],
+        html.append('<h3>Most frequent</h3>\n')
+        uniq_classes = html.print_selection(["session table", "requests table"],
                                               [[selected]] * 2)
-        html.append("<div>")
+        html.append("<div class='flex-align-start'>")
 
         if bots:
             group_name = "bots"
@@ -659,8 +664,8 @@ class Log_stats:
                 i += 1
 
         html.append(
-            "<h3>Distribution of across hours of day</h3>\n<label>Selected:</label>")
-        uniq_classes = html.print_sel_buttons(
+            "<h3>Distribution of across hours of day</h3>")
+        uniq_classes = html.print_selection(
             ["table", "session graph", "request graph"],
             [[selected]] * 3)
 
@@ -709,8 +714,8 @@ class Log_stats:
                 i += 1
 
         html.append(
-            "<h3>Distributions across week days</h3>\n<label>Select:</label>")
-        uniq_classes = html.print_sel_buttons(
+            "<h3>Distributions across week days</h3>")
+        uniq_classes = html.print_selection(
             ["table", "session graph", "request graph"],
             [[selected]]*3)
 
@@ -751,8 +756,8 @@ class Log_stats:
             data.month_req_distrib.items(), key=lambda x: x[0])
 
         html.append(
-            "<h3>Distributions accross months</h3>\n<label>Select:</label>")
-        uniq_classes = html.print_sel_buttons(
+            "<h3>Distributions accross months</h3>")
+        uniq_classes = html.print_selection(
             ["sessions graph", "requests graph"],
             [[selected]]*2)
 
@@ -859,9 +864,9 @@ class Log_stats:
         # Printing
         selected = "selected" if selected else ""
 
-        html.append("<h3>Estimated locations</h3>\n<label>Select:</label>")
+        html.append("<h3>Estimated locations</h3>")
         button_names = [f"geoloc{i}" for i in range(1, repetitions + 1)]
-        uniq_classes = html.print_sel_buttons(
+        uniq_classes = html.print_selection(
             button_names,
             [["selectable", selected]]*repetitions)
 
@@ -912,8 +917,8 @@ class Log_stats:
         # making html
         selected = "selected" if selected else ""
 
-        html.append("<h3>Estimated locations</h3>\n<label>Select:</label>")
-        uniq_classes = html.print_sel_buttons(
+        html.append("<h3>Estimated locations</h3>")
+        uniq_classes = html.print_selection(
             ["Geoloc table", "Geoloc graph"],
             [[selected]]*2)
 

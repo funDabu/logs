@@ -113,6 +113,10 @@ def make_log_stats(log_stats: Log_stats, options, selected: bool):
             log_stats.print_stats(file, options.geoloc_ss, selected, year, geoloc_db=options.geoloc_db)
     
     with open("logs_index.html", "w") as file:
+        file.write("<html>\n<head>\n<style>")
+        file.write(r"img { max-width: 100%; }")
+        file.write("</style>\n</head>\n</body>\n")
+        
         if options.name is not None:
             file.write(f"<h1>{options.name}</h1>\n")
         if options.pic_overview:
@@ -121,14 +125,14 @@ def make_log_stats(log_stats: Log_stats, options, selected: bool):
             file.write("<h2>Histogram</h2>\n")
             file.write(f"<li><a href='_hist.html'> Histogram </a></li>\n")
 
-
         file.write("<h2>Statistics per year</h2>\n")
         file.write("<ul>\n")
         for year in log_stats.year_stats.keys():
             file.write(f"<li><a href='{year}.html'> year {year} </a></li>\n")
         file.write("</ul>\n")
 
+        file.write("</body>\n</html>\n")
+
 
 if __name__ == '__main__':
     main()
-

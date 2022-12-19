@@ -1,14 +1,25 @@
 ## Zadane
 ### Urgentni
-- zacit tvorit statistiky pro logy a davat to do public-html
-- rozmyslet cron tab
-- SQLite na ukladani geolokaci
-- opravit backup modrana_access
 
-- prepsat index.html do eng
-- zacit psat dokumentaci
+
+- sirka obrazku max na sirku okna
+- zmensit mezeru nad tabulkou "picture overview"
+- zvetsit mezeru nad h2
+- odsadit selected
+- u grafu odsadit od leveho okraje nebo vycentrovat
+- pridat moznost zobrazeni celeho hostname, napr zobrazeni pri mouse hover
+
+- oprava prirucky
+- nastavit crontab
+- make script na .md > .html
+
+
+- prolest si synctool na letu
+
+
+nvidia-smi - n apolo
+
 ### Ostatni
-- dodelat user a programmer dokumentaci
 - vytvorik cmake script na pretvoreni statistik, je-li modifikovan log
 
 

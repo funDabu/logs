@@ -59,6 +59,12 @@ class Html_maker:
                                               classes[i] + [uniq_class]))
         return uniq_classes
 
+    def print_selection(self,
+                        text: str,
+                        classes: List[str])-> List[str] :
+        self.append("<label class='selection_label'>Select:</label>\n")
+        return self.print_sel_buttons(text, classes)
+
     def html(self) -> str:
         content = '\n'.join(self.content)
         return self.template.format(css=self.css, content=content, js=self.js)
@@ -109,6 +115,7 @@ def make_selection_button(target_class: str,
     return f"<button class='{' '.join(classes)}' "\
            f"onclick='updateSelection(\"{target_class}\")'>"\
            f"{text}</button>"
+
 
 
 
