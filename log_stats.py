@@ -466,13 +466,15 @@ class Log_stats:
                     selected=True,
                     year=None,
                     geoloc_db:Optional[str]= None):
+        html: Html_maker = Html_maker()
+        
         if year is not None:
             self._switch_years(year)
+            html.append(f"<h1>Year {self.current_year}</h1>")
         
         if geoloc_db is not None:
             Ip_stats.database = GeolocDB(geoloc_db)
 
-        html: Html_maker = Html_maker()
         if self.err_msg:
             timer = Ez_timer("making charts of bots and human users")
 
@@ -1018,8 +1020,9 @@ class Log_stats:
         with open(f"{os.path.dirname(__file__)}/hist.js", "r") as f:
             js = f.read()
         template = "<html><head><style>{css}</style> <script>{js}</script></head>\n<body>\n{content}\n</body>\n</html>"
-        html = Html_maker(template, js = js)
+        html: Html_maker = Html_maker(template, js = js)
 
+        html.append("<h1>Histograms</h1>")
 
         for year in sorted(self.year_stats.keys()):
             session_data = []
