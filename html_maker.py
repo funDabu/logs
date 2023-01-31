@@ -61,7 +61,7 @@ class Html_maker:
 
     def print_selection(self,
                         texts: List[str],
-                        classes: List[str])-> List[str] :
+                        classes: List[List[str]])-> List[str] :
         self.append("<label class='selection_label'>Select:</label>\n")
         return self.print_sel_buttons(texts, classes)
 
