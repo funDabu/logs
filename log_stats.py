@@ -554,9 +554,10 @@ class Log_stats:
                         html: Html_maker,
                         header_str: str,
                         req_sorted_stats: List[Ip_stats]) -> None:
+        total_session_num = sum(map(lambda ip_stat: ip_stat.sessions_num, req_sorted_stats))
         html.append(make_table("Overview",
-                               [header_str],
-                               [[str(len(req_sorted_stats))]],
+                               [header_str, "Total sessions count"],
+                               [[str(len(req_sorted_stats)), str(total_session_num)]],
                                ))
 
     def _sort_stats(self,
