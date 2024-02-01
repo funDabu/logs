@@ -240,8 +240,6 @@ class Ip_stats:
         if not self.ensure_valid_ip_address():
             self.geolocation = "Unknown"
             return
-        
-        print(self.ip_addr) # DEBUG!
 
         token_max = 3
         sleep_time = 2 # seconds
