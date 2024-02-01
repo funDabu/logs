@@ -20,7 +20,10 @@ from geoloc_db import GeolocDB
 from constants import LOG_DT_FORMAT, DT_FORMAT, DATE_FORMAT, MONTHS, DAYS
 
 BOT_URL_REGEX = r"(http\S+?)[);]"
-RE_PROG_BOT_URL = re.compile(BOT_URL_REGEX)
+RE_PATTERN_BOT_URL = re.compile(BOT_URL_REGEX)
+
+SIMPLE_IPV4_REGEX = r"(?:[0-9]{1,3}\.){3}[0-9]{1,3}"
+RE_PATTERN_SIMPLE_IPV4 = re.compile(SIMPLE_IPV4_REGEX)
 
 SESSION_DELIM = 1  # in minutes
 
@@ -67,7 +70,7 @@ def strp_date(date: str, format: str) -> datetime.date:
 def get_bot_url(user_agent: str) -> str:
     # if "user agent" field of the log entry doesn't contain
     #   bot's url, returns empty string
-    match = RE_PROG_BOT_URL.search(user_agent)
+    match = RE_PATTERN_BOT_URL.search(user_agent)
     if match is None:
         return ""
     return match.group(1)
@@ -94,7 +97,7 @@ def determine_bot(entry:Log_entry, *args: Callable[[Log_entry], bool]) -> Tuple[
 
     """
 
-    match = RE_PROG_BOT_URL.search(entry.user_agent)
+    match = RE_PATTERN_BOT_URL.search(entry.user_agent)
     if match is not None:
         return (True, match.group(1))
 
@@ -115,11 +118,24 @@ def anotate_bars(xs: List[float], ys: List[float], labels: List[int], rotation: 
 """
 
 class Ip_stats:
-    geoloc_tokens = None # www.geoplugin.net api oficial limit is 120 requsts/min
-    last_geoloc_ts = time.time()
-    session = requests.Session()
+    """Data structure to store informations about requests
+    from a single IP address
 
-    database = None
+    Attributes
+    ----------
+    ip_addr: str
+    host_name: str
+    geolocation: str
+    bot_url: str
+    is_bot: bool
+    requests_num: int
+    sessions_num: int
+    datetime: datetime
+    """
+    geoloc_tokens = None # www.geoplugin.net api oficial limit is 120 requsts/min
+    last_geoloc_ts = time.time() # time stamp of last call to geolocation API
+    session = requests.Session() # to call geolocation API
+    database = None # database of saved geolocations
 
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "datetime")
@@ -164,6 +180,33 @@ class Ip_stats:
 
         hostname = '.'.join(hostname)
         return hostname
+    
+    def ensure_valid_ip_address(self) -> bool:
+        """Does a simple incomplete validation of `self.ip_addr`.
+        If `self.ip_addr` in not an IP address,
+        than it might be a domain name, 
+        so a DNS lookup will be made to find corresponding IP address
+        and `self.ip_addr` will be set accordingly.
+
+        Returns
+        -------
+        True
+            If `self.ip_addr` probably contains valid ip address
+        
+        False
+            If `self.ip_addr` is not valid and the address could not be resolved
+        """
+        match = RE_PATTERN_SIMPLE_IPV4.search(self.ip_addr)
+        if match is not None:
+            return True
+        
+        try:
+            addr = socket.gethostbyname(self.ip_addr)
+            self.host_name = self.ip_addr
+            self.ip_addr = addr
+            return True
+        except:
+            return False
 
 
     def add_entry(self, entry: Log_entry) -> int:
@@ -194,8 +237,14 @@ class Ip_stats:
         Ip_stats.database.insert_geolocation(self.ip_addr, self.geolocation)
     
     def geolocate_with_api(self):
+        if not self.ensure_valid_ip_address():
+            self.geolocation = "Unknown"
+            return
+        
+        print(self.ip_addr) # DEBUG!
+
         token_max = 3
-        sleep_time = 2 # sec
+        sleep_time = 2 # seconds
 
         if Ip_stats.geoloc_tokens is None\
            or Ip_stats.last_geoloc_ts - time.time() > sleep_time:
