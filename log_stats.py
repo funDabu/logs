@@ -74,9 +74,25 @@ def get_bot_url(user_agent: str) -> str:
 
 
 def determine_bot(entry:Log_entry, *args: Callable[[Log_entry], bool]) -> Tuple[bool, str]:
-    # returns: - [True, bot_url] if stat is classified as bot based on url in user_agent,
-    #          - [True, ""] when bot classified based on predicate in *args,
-    #          - [False, ""]  otherwise
+    """ Classifies log entry as a bot if User-agent contains an URL
+    or if a predicate from *args called on the entry is true
+
+    Parameters
+    ----------
+    entry : Log_entry
+        the log entry which will be classified
+    
+    *args: Callable[[Log_entry], bool])
+        predicates on Log_entry which will 
+
+    Returns
+    -------
+    Tuple[bool, str]
+        - (True, <url>) if the entry is classified as bot based on url in user_agent
+        - (True, "") if the bot classified based on predicate in *args
+        - (False, "")  otherwise
+
+    """
 
     match = RE_PROG_BOT_URL.search(entry.user_agent)
     if match is not None:
@@ -108,8 +124,12 @@ class Ip_stats:
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "datetime")
 
-    def __init__(self, entry:Log_entry, is_bot:Optional[bool]=None,
-                 bot_url="", json:Optional[str]=None) -> None:
+    def __init__(self,
+                 entry:Log_entry,
+                 is_bot:Optional[bool]=None,
+                 bot_url="",
+                 json:Optional[str]=None)\
+        -> None:
 
         if json is not None:
             self._from_json(json)
