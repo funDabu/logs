@@ -22,7 +22,7 @@ from constants import LOG_DT_FORMAT, DT_FORMAT, DATE_FORMAT, MONTHS, DAYS
 BOT_URL_REGEX = r"(http\S+?)[);]"
 RE_PATTERN_BOT_URL = re.compile(BOT_URL_REGEX)
 
-SIMPLE_IPV4_REGEX = r"(?:[0-9]{1,3}\.){3}[0-9]{1,3}"
+SIMPLE_IPV4_REGEX = r"^\s*(?:[0-9]{1,3}\.){3}[0-9]{1,3}\s*$"
 RE_PATTERN_SIMPLE_IPV4 = re.compile(SIMPLE_IPV4_REGEX)
 
 SESSION_DELIM = 1  # in minutes
