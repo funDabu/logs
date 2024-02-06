@@ -104,6 +104,7 @@ def main():
 
 
 def make_log_stats(log_stats: Log_stats, options, selected: bool):
+    log_stats.resolve_and_group_ips(ip_map={})
     make_pictures(log_stats)
 
     for year in sorted(log_stats.year_stats.keys()):
