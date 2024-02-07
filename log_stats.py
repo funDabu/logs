@@ -129,22 +129,26 @@ def anotate_bars(xs: List[float], ys: List[float], labels: List[int], rotation: 
         plt.annotate(str(labels[i]), (x, ys[i]),
                      rotation=rotation, horizontalalignment='center')
 
+def simple_ipv4_check(ip: str) -> bool:
+    """Non-exhaustivly tests if `ip` is already a valid IPv4
+
+    Returns
+    -------
+    bool
+        - `True` if `ip` is valid IPv4 
+        - `False` otherwise
+    """
+    return RE_PATTERN_SIMPLE_IPV4.search(ip) is not None
+
 def host_to_ip(host: str) -> Tuple[bool, str]:
-    """Simplisticaly tests if `host` is already a valid IPv4,
-    if not then tries to relove it and returns the result
+    """Tries to relove `host` and return the result
 
     Returns
     -------
     Tuple[bool, str]
-        - `(True, host)` if `host` is already IPv4 
-        - `(True, <resolved ip>)` if `host` is not a valid IPv4
-          and a corresponding IPv4 could be resolved
-        - `(False, host)` if `host` is not a valid IPv4
-          and a corresponding IPv4 couldn't be resolved
-    """
-    if RE_PATTERN_SIMPLE_IPV4.search(host) is not None:
-        return (True, host)
-    
+        - `(True, <resolved ip>)` if IPv4 could be resolved
+        - `(False, host)` if IPv4 couldn't be resolved
+    """   
     try:
         addr = socket.gethostbyname(host)
         return (True, addr)
@@ -233,18 +237,34 @@ class Ip_stats:
         Parameters
         ----------
         ip_map: Dict[str, str], optional
+            memo for invalid ips,
             maps invalid ip to corresponding valid ip
 
         Returns
         -------
         bool
             - `True` if `self.ip_addr` probably contains valid ip address
+              or was fixed to a valid ip.
             - `False` if `self.ip_addr` is not valid
               and the address could not be resolved
         """        
+        if simple_ipv4_check(self.ip_addr):
+            return True
+        
+        if ip_map is not None:
+            ip = ip_map.get(self.ip_addr)
+
+            if ip is not None:
+                self.host_name = self.ip_addr
+                self.ip_addr = ip
+                return True
+        
         valid, ip = host_to_ip(self.ip_addr)
 
-        if valid and ip != self.ip_addr:
+        if ip_map is not None:
+            ip_map[self.ip_addr] = ip
+
+        if valid:
             self.host_name = self.ip_addr
             self.ip_addr = ip
         
@@ -495,7 +515,7 @@ class Log_stats:
         with open(config_file_path, "r") as f:
             self.bots_set = set(ip_addr for ip_addr in f)
 
-    def resolve_and_group_ips(self, ip_map: Optional[Dict[str, str]]) -> None:
+    def resolve_and_group_ips(self, ip_map: Dict[str, str] = {}) -> None:
         """Resolves ip address for all data in year_data
         and merges same ips together
 
@@ -515,25 +535,15 @@ class Log_stats:
             self.year_stats[year] = (bots, people)
 
         # resolve and merge self.daily_data
-        if ip_map is None:
-            ip_map = {}
-
+        # now all ips were already resoved and invalid are saved in ip_map
         for date, (ips, x, y) in self.daily_data.items():
             ips: Set[str]
-            resolved_ips: Set[str] = set()
+            grouped_ips: Set[str] = set()
 
             for ip in ips:
                 resolved = ip_map.get(ip)
-                if resolved is not None:
-                    resolved_ips.add(ip_map)
-                    continue
-
-                _, resolved_ip = host_to_ip(ip)
-                resolved_ips.add(resolved_ip)
-                if resolved_ip != ip:
-                    ip_map[ip] = resolved_ip
-            
-            self.daily_data[date] = (resolved_ips, x, y)
+                grouped_ips.add(ip if resolved is None else resolved)            
+            self.daily_data[date] = (grouped_ips, x, y)
 
         if timer is not None:
             timer.finish()
@@ -541,7 +551,7 @@ class Log_stats:
     def _resolve_and_group_ips_from_stat_structs(
             self,
             stat_struct: Stat_struct,
-            ip_map: Optional[Dict[str,str]])\
+            ip_map: Optional[Dict[str,str]] = None)\
                 -> None:
         """Resolves ip address in `stat_struct`
         and merges data for same ips together
