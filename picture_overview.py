@@ -130,19 +130,19 @@ def make_pictures(stats: Union[Log_stats, str], load_json=False, output_json="",
 
         # pure request count
         data["day_requests"] = list(
-            map(lambda x: (base_step, x[1][1], x[0].isoformat()), data_objects))
+            map(lambda x: (base_step, x[1].requests, x[0].isoformat()), data_objects))
         # DEBUG ^make it more readabel
         # print(data["day_requests"]) #DEBUG
         data["month_requests"] = day_to_month_data(data["day_requests"])
 
         # unique IP count
         data["day_ips"] = list(
-            map(lambda x: (base_step, len(x[1][0]), x[0].isoformat()), data_objects))
+            map(lambda x: (base_step, len(x[1].ips), x[0].isoformat()), data_objects))
         data["month_ips"] = day_to_month_data(data["day_ips"])
 
         # human session count
         data["day_sessions"] = list(
-            map(lambda x: (base_step, x[1][2], x[0].isoformat()), data_objects))
+            map(lambda x: (base_step, x[1].sessions, x[0].isoformat()), data_objects))
         data["month_sessions"] = day_to_month_data(data["day_sessions"])
 
     # print(data) #DEBUG

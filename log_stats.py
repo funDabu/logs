@@ -10,7 +10,7 @@ import time
 import json, re
 from log_parser import Log_entry, parse_entry_with_regex, regex_parser
 from html_maker import Html_maker, make_table
-from typing import List, TextIO, Optional, Tuple, Dict, Set, Callable
+from typing import List, TextIO, Optional, Tuple, Dict, Set, Callable, NamedTuple
 from geoloc_db import GeolocDB
 
 
@@ -429,6 +429,11 @@ class Stat_struct:
             self._set_attr(slot, js[slot])
 
 
+class Daily_stats(NamedTuple):
+    ips: Set[str]
+    requests: int
+    sessions: int
+
 class Log_stats:
     """
     Attributes
@@ -438,8 +443,8 @@ class Log_stats:
     poeple: Stat_struct
         stores informations about humna users for current year
     current_year: int, optional
-    daily_data: Dict[datetime.date, Tuple[Set[str], int, int]]
-        maps dates to a tuples (<unique ips>, <number of requests>, <number of human sessions>)
+    daily_data: Dict[datetime.date, Daily_stats]
+        maps dates to a named tuples (<unique ips>, <number of requests>, <number of human sessions>)
         the tuple contains information related to the given date
         this information is used for making picture overview
     year_stats: Dict[int, Tuple(Stat_struct, Stat_struct)]
@@ -453,7 +458,7 @@ class Log_stats:
         self.bots = Stat_struct()
         self.people = Stat_struct()
         self.err_msg = err_msg
-        self.daily_data: Dict[datetime.date, Tuple[Set[str], int, int]] = {}
+        self.daily_data: Dict[datetime.date, Daily_stats] = {}
         self.year_stats: Dict[int, Tuple(Stat_struct, Stat_struct)] = {}
         self.current_year = None
 
@@ -472,8 +477,8 @@ class Log_stats:
             return self.people.json()
 
         if name == "daily_data":
-            return {d.__format__(DATE_FORMAT): (list(ips), r, s)
-                        for d, (ips, r, s) in self.daily_data.items()}
+            return {dt.__format__(DATE_FORMAT): (list(data.ips), data.requests, data.sessions)
+                        for dt, data in self.daily_data.items()}
         
         if name == "year_stats":
             return {y : (b.json(), p.json()) for y, (b, p) in self.year_stats.items()}
@@ -489,7 +494,7 @@ class Log_stats:
         elif name == "people":
             self.people = Stat_struct(data)
         elif name == "daily_data":
-            self.daily_data = {strp_date(d, DATE_FORMAT): (set(ips), r, s)
+            self.daily_data = {strp_date(d, DATE_FORMAT): Daily_stats(set(ips), r, s)
                                     for d, (ips, r, s) in data.items()}
         elif name == "year_stats":
             self.year_stats = {int(year): (Stat_struct(b), Stat_struct(p))
@@ -568,14 +573,14 @@ class Log_stats:
 
         # resolve and merge self.daily_data
         # now all ips were already resoved and invalid are saved in ip_map
-        for date, (ips, x, y) in self.daily_data.items():
-            ips: Set[str]
+        for date, data in self.daily_data.items():
+            ips: Set[str] = data.ips
             grouped_ips: Set[str] = set()
 
             for ip in ips:
                 resolved = ip_map.get(ip)
                 grouped_ips.add(ip if resolved is None else resolved)            
-            self.daily_data[date] = (grouped_ips, x, y)
+            self.daily_data[date] = Daily_stats(grouped_ips, data.requests, data.sessions)
 
         if timer is not None:
             timer.finish()
@@ -684,7 +689,7 @@ class Log_stats:
         ip_addrs.add(ip_stat.ip_addr)
         if not ip_stat.is_bot and new_sess:
             sess_num += 1
-        self.daily_data[date] = (ip_addrs, req_num + 1, sess_num)
+        self.daily_data[date] = Daily_stats(ip_addrs, req_num + 1, sess_num)
 
     def _switch_years(self, year: int):
         if self.current_year is not None:
