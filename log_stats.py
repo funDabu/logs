@@ -28,6 +28,19 @@ RE_PATTERN_SIMPLE_IPV4 = re.compile(SIMPLE_IPV4_REGEX)
 BOT_USER_AGENT_REGEX = r"bot|Bot|crawl|Crawl"
 RE_PATTERN_BOT_USER_AGENT = re.compile(BOT_USER_AGENT_REGEX)
 
+# Based on https://www.fi.muni.cz/tech/unix/external-network.html.cs
+# 147.251.42–53.0/24, 147.251.58.0/24, 172.16.0.0/12
+FI_MU_IPv4_REGEX = \
+    r"^\s*147\.251\.(?:" \
+    + '|'.join(str(n) for n in range(42,54)) \
+    + "|58" \
+    + r")\.[0-9]{1,3}\s*$"  \
+    + r"|^\s*172\.(?:" \
+    + '|'.join(str(n) for n in range(16,32)) \
+    + r")(?:\.[0-9]{1,3}){2}\s*$"
+
+RE_PATTERN_FI_MU_IPv4 = re.compile(FI_MU_IPv4_REGEX)
+
 SESSION_DELIM = 1  # in minutes
 
 
@@ -733,9 +746,15 @@ class Log_stats:
                         header_str: str,
                         req_sorted_stats: List[Ip_stats]) -> None:
         total_session_num = sum(map(lambda ip_stat: ip_stat.sessions_num, req_sorted_stats))
+        fi_mu_session_num = 0
+        for stat in req_sorted_stats:
+            if RE_PATTERN_FI_MU_IPv4.search(stat.ip_addr) is not None:
+                fi_mu_session_num += stat.sessions_num
+
         html.append(make_table("Overview",
-                               [header_str, "Total sessions count"],
-                               [[str(len(req_sorted_stats)), str(total_session_num)]],
+                               [header_str, "Total sessions count", "FI MU sessions", "external sessions"],
+                               [[str(len(req_sorted_stats)), str(total_session_num),
+                                 str(fi_mu_session_num), str(total_session_num-fi_mu_session_num)]],
                                ))
 
     def _sort_stats(self,
