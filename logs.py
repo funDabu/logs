@@ -7,7 +7,7 @@ import sys
 OVERVIEW = """<h2>Overview</h2>
 <h3>Requests</h3>
 <img src='requests_overview.png'>
-<h3>Sessions</h3>
+<h3>Sessions of human users</h3>
 <img src='sessions_overview.png'>
 <h3>Unique IP addresses</h3>
 <img src='unique_ip_overview.png'>
@@ -83,7 +83,8 @@ def main():
                           options.geoloc_ss,
                           selected=False,
                           year=options.year,
-                          geoloc_db=options.geoloc_db)
+                          geoloc_db=options.geoloc_db,
+                          display_overview_imgs=True)
     elif not options.clean:
         make_log_stats(stats, options, selected=False)
     
@@ -94,7 +95,8 @@ def main():
                                    selected=False,
                                    repetitions=options.test)
     if options.pic_overview:
-        make_pictures(stats)
+        years = stats.year_stats.keys()
+        make_pictures(stats, separate_years=years)
 
     if options.hist:
         stats.make_histogram("_hist.html", selected=False)
@@ -109,7 +111,8 @@ def make_log_stats(log_stats: Log_stats, options, selected: bool):
 
     for year in sorted(log_stats.year_stats.keys()):
         with open(f"{year}.html", "w") as file:
-            log_stats.print_stats(file, options.geoloc_ss, selected, year, geoloc_db=options.geoloc_db)
+            log_stats.print_stats(file, options.geoloc_ss, selected, year, 
+                                  geoloc_db=options.geoloc_db, display_overview_imgs=True)
     
     with open("logs_index.html", "w") as file:
         file.write("<html>\n<head>\n<style>")

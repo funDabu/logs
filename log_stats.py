@@ -651,13 +651,25 @@ class Log_stats:
         self.current_year = year
         self.bots, self.people =\
             self.year_stats.get(year, (Stat_struct(), Stat_struct()))
+    
+    def _display_overview_imgs(self, html: Html_maker):
+        overview = """<h2>Picture overview</h2>
+<h3>Requests</h3>
+<img src='requests_{0}_overview.png'>
+<h3>Sessions of human users</h3>
+<img src='sessions_{0}_overview.png'>
+<h3>Unique IP addresses</h3>
+<img src='ips_{0}_overview.png'>
+"""
+        html.append(overview.format(self.current_year))
 
     def print_stats(self,
                     output: TextIO,
                     geoloc_sample_size,
                     selected=True,
                     year=None,
-                    geoloc_db:Optional[str]= None):
+                    geoloc_db:Optional[str]= None,
+                    display_overview_imgs: bool = False):
         html: Html_maker = Html_maker()
         
         if year is not None:
@@ -669,6 +681,9 @@ class Log_stats:
 
         if self.err_msg:
             timer = Ez_timer("making charts of bots and human users")
+        
+        if display_overview_imgs:
+            self._display_overview_imgs(html)
 
         self._print_bots(html, selected)
         self._print_users(html, selected)

@@ -113,7 +113,8 @@ def day_to_month_data(data: Iterable[Tuple[int, int, str]])\
     return month_data
 
 
-def make_pictures(stats: Union[Log_stats, str], load_json=False, output_json=""):
+def make_pictures(stats: Union[Log_stats, str], load_json=False, output_json="",
+                  separate_years: List[int] = []):
     base_step = 2
 
     if load_json:
@@ -156,6 +157,16 @@ def make_pictures(stats: Union[Log_stats, str], load_json=False, output_json="")
                  base_step, True, "unique_ip_overview.png") # set it back to False DEBUG!
     make_picture(data["day_sessions"], data["month_sessions"],
                  base_step, True, "sessions_overview.png")
+    
+    for year in separate_years:
+        year = str(year)
+
+        for metric in ("requests", "ips", "sessions"):
+            day_data = list(filter(lambda x: year in x[2], data[f"day_{metric}"]))
+            month_data = list(filter(lambda x: year in x[2], data[f"month_{metric}"]))
+
+            make_picture(day_data, month_data,
+                         base_step, True, f"{metric}_{year}_overview.png")
 
 
 def get_day_max(day_data: List[Tuple[int, int, str]],
