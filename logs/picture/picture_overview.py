@@ -1,4 +1,4 @@
-from logs.statistics.log_stats import Log_stats
+from logs.statistics.processing import Log_stats
 from PIL import Image, ImageDraw, ImageFont
 from typing import Iterator, List, Optional, Tuple, Iterable, Union
 import sys

@@ -1,5 +1,5 @@
 from optparse import OptionParser
-from logs.statistics.log_stats import  Log_stats
+from logs.statistics.processing import  Log_stats
 from logs.picture.picture_overview import make_pictures
 import sys
 

@@ -1,12 +1,16 @@
+# Contains constants common for logs package
+
+
 """
 ========== REGEX ==========
 """
 
 # LOG_ENTRY_REGEX = r'([0-9.]+?) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+?) "(.*?)(?<!\\)" "(.*?)(?<!\\)"'
-# ^ matches only numbers and dots in the first - 'ip adress' group
+# matches only numbers and dots in the first - 'Host' group - eg. excepts only IPv4 as a host
 LOG_ENTRY_REGEX = r'(\S+) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+?) "(.*?)(?<!\\)" "(.*?)(?<!\\)"'
-# ^ matches all nonwhitespace characters in the first - 'ip address' group
+# matches all nonwhitespace characters in the first - 'Host' group - e.g allows for both IP address and hostname as a host
 TIME_REGEX = r'\S+ .+? .+? \[(.+?)\] '
+
 
 
 """
@@ -23,4 +27,4 @@ DAYS = ["Mon", "Tue", "Wed", "Thr", "Fri", "Sat", "Sun"]
 """
 ========== PATHS ==========
 """
-GEOLOC_DB_PATH = "./_geoloc_db"
+GEOLOC_DB_PATH = "./_geoloc_db" # TODO is it used??
