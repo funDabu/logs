@@ -2,7 +2,7 @@ import re
 
 from typing import  Callable, TextIO, Iterator
 
-from constants import LOG_ENTRY_REGEX
+from logs.structures.constants import LOG_ENTRY_REGEX
 RE_PROG_ENTRY = re.compile(LOG_ENTRY_REGEX)
 
 

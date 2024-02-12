@@ -8,16 +8,16 @@ import random
 import requests
 import time
 import json, re
-from log_parser import Log_entry, parse_entry_with_regex, regex_parser
-from html_maker import Html_maker, make_table
+from logs.parser.log_parser import Log_entry, parse_entry_with_regex, regex_parser
+from logs.htmlmaker.html_maker import Html_maker, make_table
 from typing import List, TextIO, Optional, Tuple, Dict, Set, Callable, NamedTuple
-from geoloc_db import GeolocDB
+from logs.statistics.geoloc_db import GeolocDB
 
 
 """
 ========== CONSTANTS ==========
 """
-from constants import LOG_DT_FORMAT, DT_FORMAT, DATE_FORMAT, MONTHS, DAYS
+from logs.structures.constants import LOG_DT_FORMAT, DT_FORMAT, DATE_FORMAT, MONTHS, DAYS
 
 BOT_URL_REGEX = r"(http\S+?)[);]"
 RE_PATTERN_BOT_URL = re.compile(BOT_URL_REGEX)

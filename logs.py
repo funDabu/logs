@@ -1,6 +1,6 @@
 from optparse import OptionParser
-from log_stats import  Log_stats
-from picture_overview import make_pictures
+from logs.statistics.log_stats import  Log_stats
+from logs.picture.picture_overview import make_pictures
 import sys
 
 

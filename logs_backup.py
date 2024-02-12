@@ -1,4 +1,4 @@
-from constants import TIME_REGEX, LOG_DT_FORMAT
+from logs.structures.constants import TIME_REGEX, LOG_DT_FORMAT
 import argparse
 import os
 import sys
