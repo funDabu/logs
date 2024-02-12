@@ -10,7 +10,7 @@ OVERVIEW = """<h2>Overview</h2>
 <h3>Sessions of human users</h3>
 <img src='sessions_overview.png'>
 <h3>Unique IP addresses</h3>
-<img src='unique_ip_overview.png'>
+<img src='ips_overview.png'>
 """
 
 
