@@ -25,7 +25,7 @@ RE_PATTERN_BOT_URL = re.compile(BOT_URL_REGEX)
 SIMPLE_IPV4_REGEX = r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
 RE_PATTERN_SIMPLE_IPV4 = re.compile(SIMPLE_IPV4_REGEX)
 
-BOT_USER_AGENT_REGEX = r"bot|Bot|crawl|Crawl"
+BOT_USER_AGENT_REGEX = r"bot|Bot|crawl|Crawl|GoogleOther"
 RE_PATTERN_BOT_USER_AGENT = re.compile(BOT_USER_AGENT_REGEX)
 
 # Based on https://www.fi.muni.cz/tech/unix/external-network.html.cs
