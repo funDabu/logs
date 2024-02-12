@@ -97,6 +97,8 @@ def make_table_row(content: Iterable[str]):
 def make_table_row_with_attribs(content: Iterable[str],
                                 td_attribs: Iterable[str]):
     result = []
+    content = list(content)
+    td_attribs = expand_td_attribs_for_row(td_attribs, len(content))
 
     for td_data, attribs in zip(content, td_attribs):
         result.append(f"<td {attribs}>{td_data}</td>")
@@ -135,7 +137,9 @@ def make_selection_button(target_class: str,
            f"{text}</button>"
 
 
-
+def expand_td_attribs_for_row(attribs: Iterable[str], row_len: int) -> List[str]:
+    attribs = list(attribs)
+    return attribs + [""]*(row_len-len(attribs))
 
 def test():
     html = Html_maker()

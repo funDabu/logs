@@ -26,7 +26,7 @@ def annotate(draw: ImageDraw.ImageDraw,
 
         text_width, _ = get_text_size("{:_}".format(
                 month_maximum // 5 * i), font)                       
-        draw.text((width-2-text_width, y),
+        draw.text((width - 2 - text_width, y),
                   "{:_}".format(month_maximum // 5 * i),
                   fill=(0, 0, 0))
 
@@ -113,7 +113,25 @@ def day_to_month_data(data: Iterable[Tuple[int, int, str]])\
     return month_data
 
 
-def make_pictures(stats: Union[Log_stats, str], load_json=False, output_json=""):
+def month_labels_to_year_labels(month_data: List[Tuple[int, int, str]])\
+        -> List[Tuple[int, int, str]]:
+    result_data = []
+
+    current_year = None
+    for w, h, month in month_data:
+        label = ""
+
+        if month[:4] != current_year:
+            current_year = month[:4]
+            label = current_year
+        
+        result_data.append((w, h, label))
+
+    return result_data
+
+
+def make_pictures(stats: Union[Log_stats, str], load_json=False, output_json="",
+                  separate_years: List[int] = []):
     base_step = 2
 
     if load_json:
@@ -129,19 +147,19 @@ def make_pictures(stats: Union[Log_stats, str], load_json=False, output_json="")
 
         # pure request count
         data["day_requests"] = list(
-            map(lambda x: (base_step, x[1][1], x[0].isoformat()), data_objects))
+            map(lambda x: (base_step, x[1].requests, x[0].isoformat()), data_objects))
         # DEBUG ^make it more readabel
         # print(data["day_requests"]) #DEBUG
         data["month_requests"] = day_to_month_data(data["day_requests"])
 
         # unique IP count
         data["day_ips"] = list(
-            map(lambda x: (base_step, len(x[1][0]), x[0].isoformat()), data_objects))
+            map(lambda x: (base_step, len(x[1].ips), x[0].isoformat()), data_objects))
         data["month_ips"] = day_to_month_data(data["day_ips"])
 
         # human session count
         data["day_sessions"] = list(
-            map(lambda x: (base_step, x[1][2], x[0].isoformat()), data_objects))
+            map(lambda x: (base_step, x[1].sessions, x[0].isoformat()), data_objects))
         data["month_sessions"] = day_to_month_data(data["day_sessions"])
 
     # print(data) #DEBUG
@@ -150,13 +168,22 @@ def make_pictures(stats: Union[Log_stats, str], load_json=False, output_json="")
         with open(output_json, "w") as output_f:
             json.dump(data, output_f)
 
-    make_picture(data["day_requests"], data["month_requests"],
-                 base_step, True, "requests_overview.png")
-    make_picture(data["day_ips"], data["month_ips"],
-                 base_step, True, "unique_ip_overview.png") # set it back to False DEBUG!
-    make_picture(data["day_sessions"], data["month_sessions"],
-                 base_step, True, "sessions_overview.png")
+    for year in separate_years:
+        year = str(year)
 
+        for metric in ("requests", "ips", "sessions"):
+            day_data = list(filter(lambda x: year in x[2], data[f"day_{metric}"]))
+            month_data = list(filter(lambda x: year in x[2], data[f"month_{metric}"]))
+
+            make_picture(day_data, month_data,
+                         base_step, True, f"{metric}_{year}_overview.png")
+            
+    for metric in ("requests", "ips", "sessions"):
+        day_data = data[f"day_{metric}"]
+        month_data = month_labels_to_year_labels(data[f"month_{metric}"])
+
+        make_picture(day_data, month_data, base_step, True, f"{metric}_overview.png")
+    
 
 def get_day_max(day_data: List[Tuple[int, int, str]],
                 month_count: int, fix_outlieres=False)\
@@ -193,8 +220,8 @@ def make_picture(day_data: List[Tuple[int, int, str]],
 
     zero_line = top_margin + height
 
-    img = Image.new('RGB', (width, height + bottom_margin +
-                    top_margin), (255, 255, 255))
+    img = Image.new('RGB', (width, height + bottom_margin + top_margin),
+                    (255, 255, 255))
     draw = ImageDraw.Draw(img)
 
     for data_object in render_iter(month_data,
@@ -203,7 +230,7 @@ def make_picture(day_data: List[Tuple[int, int, str]],
                                    left_margin + 1,
                                    zero_line,
                                    False):
-        data_object.draw(img, draw, (170, 170, 170), True, pritify_month)
+        data_object.draw(img, draw, (170, 170, 170), True, pretify_date)
 
     annotate(draw, day_maximum, month_maximum, width, height, zero_line)
     for data_object in render_iter(day_data,
@@ -277,10 +304,11 @@ def render_iter(data: Iterable[Tuple[int, int, str]],
         yield data_obj
 
 
-def pritify_month(month: str) -> str:
-    splited_month = month.split("-")
-    pretty_month = MONTHS[int(splited_month[1])]
-    return f"{pretty_month} {splited_month[0]}"
+def pretify_date(date: str) -> str:
+    pretify_date = date.split("-")
+    pretty_month = MONTHS[int(pretify_date[1])] if len(pretify_date) > 1 else ""
+    
+    return f"{pretty_month} {pretify_date[0]}"
 
 
 def main():

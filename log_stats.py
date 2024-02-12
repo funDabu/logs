@@ -10,7 +10,7 @@ import time
 import json, re
 from log_parser import Log_entry, parse_entry_with_regex, regex_parser
 from html_maker import Html_maker, make_table
-from typing import List, TextIO, Optional, Tuple, Dict, Set, Callable
+from typing import List, TextIO, Optional, Tuple, Dict, Set, Callable, NamedTuple
 from geoloc_db import GeolocDB
 
 
@@ -20,7 +20,26 @@ from geoloc_db import GeolocDB
 from constants import LOG_DT_FORMAT, DT_FORMAT, DATE_FORMAT, MONTHS, DAYS
 
 BOT_URL_REGEX = r"(http\S+?)[);]"
-RE_PROG_BOT_URL = re.compile(BOT_URL_REGEX)
+RE_PATTERN_BOT_URL = re.compile(BOT_URL_REGEX)
+
+SIMPLE_IPV4_REGEX = r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
+RE_PATTERN_SIMPLE_IPV4 = re.compile(SIMPLE_IPV4_REGEX)
+
+BOT_USER_AGENT_REGEX = r"bot|Bot|crawl|Crawl|GoogleOther"
+RE_PATTERN_BOT_USER_AGENT = re.compile(BOT_USER_AGENT_REGEX)
+
+# Based on https://www.fi.muni.cz/tech/unix/external-network.html.cs
+# 147.251.42–53.0/24, 147.251.58.0/24, 172.16.0.0/12
+FI_MU_IPv4_REGEX = \
+    r"^147\.251\.(?:" \
+    + '|'.join(str(n) for n in range(42,54)) \
+    + "|58" \
+    + r")\.[0-9]{1,3}$"  \
+    + r"|^172\.(?:" \
+    + '|'.join(str(n) for n in range(16,32)) \
+    + r")(?:\.[0-9]{1,3}){2}$"
+
+RE_PATTERN_FI_MU_IPv4 = re.compile(FI_MU_IPv4_REGEX)
 
 SESSION_DELIM = 1  # in minutes
 
@@ -67,18 +86,34 @@ def strp_date(date: str, format: str) -> datetime.date:
 def get_bot_url(user_agent: str) -> str:
     # if "user agent" field of the log entry doesn't contain
     #   bot's url, returns empty string
-    match = RE_PROG_BOT_URL.search(user_agent)
+    match = RE_PATTERN_BOT_URL.search(user_agent)
     if match is None:
         return ""
     return match.group(1)
 
 
 def determine_bot(entry:Log_entry, *args: Callable[[Log_entry], bool]) -> Tuple[bool, str]:
-    # returns: - [True, bot_url] if stat is classified as bot based on url in user_agent,
-    #          - [True, ""] when bot classified based on predicate in *args,
-    #          - [False, ""]  otherwise
+    """ Classifies log entry as a bot if User-agent contains an URL
+    or if a predicate from *args called on the entry is true
 
-    match = RE_PROG_BOT_URL.search(entry.user_agent)
+    Parameters
+    ----------
+    entry : Log_entry
+        the log entry which will be classified
+    
+    *args: Callable[[Log_entry], bool])
+        predicates on Log_entry which will 
+
+    Returns
+    -------
+    Tuple[bool, str]
+        - (True, <url>) if the entry is classified as bot based on url in user_agent
+        - (True, "") if the bot classified based on predicate in *args
+        - (False, "")  otherwise
+
+    """
+
+    match = RE_PATTERN_BOT_URL.search(entry.user_agent)
     if match is not None:
         return (True, match.group(1))
 
@@ -94,22 +129,65 @@ def anotate_bars(xs: List[float], ys: List[float], labels: List[int], rotation: 
         plt.annotate(str(labels[i]), (x, ys[i]),
                      rotation=rotation, horizontalalignment='center')
 
+def simple_ipv4_check(ip: str) -> bool:
+    """Non-exhaustivly tests if `ip` is already a valid IPv4
+
+    Returns
+    -------
+    bool
+        - `True` if `ip` is valid IPv4 
+        - `False` otherwise
+    """
+    return RE_PATTERN_SIMPLE_IPV4.search(ip) is not None
+
+def host_to_ip(host: str) -> Tuple[bool, str]:
+    """Tries to relove `host` and return the result
+
+    Returns
+    -------
+    Tuple[bool, str]
+        - `(True, <resolved ip>)` if IPv4 could be resolved
+        - `(False, host)` if IPv4 couldn't be resolved
+    """   
+    try:
+        addr = socket.gethostbyname(host)
+        return (True, addr)
+    except:
+        return (False, host)
+
 """
 ========== CLASSES ==========
 """
 
 class Ip_stats:
-    geoloc_tokens = None # www.geoplugin.net api oficial limit is 120 requsts/min
-    last_geoloc_ts = time.time()
-    session = requests.Session()
+    """Data structure to store informations about requests
+    from a single IP address
 
-    database = None
+    Attributes
+    ----------
+    ip_addr: str
+    host_name: str
+    geolocation: str
+    bot_url: str
+    is_bot: bool
+    requests_num: int
+    sessions_num: int
+    datetime: datetime
+    """
+    geoloc_tokens = None # www.geoplugin.net api oficial limit is 120 requsts/min
+    last_geoloc_ts = time.time() # time stamp of the last call to geolocation API
+    session = requests.Session() # for geolocation API
+    database = None # database of saved geolocations
 
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
                  "is_bot", "requests_num", "sessions_num", "datetime")
 
-    def __init__(self, entry:Log_entry, is_bot:Optional[bool]=None,
-                 bot_url="", json:Optional[str]=None) -> None:
+    def __init__(self,
+                 entry:Log_entry,
+                 is_bot:Optional[bool]=None,
+                 bot_url="",
+                 json:Optional[str]=None)\
+        -> None:
 
         if json is not None:
             self._from_json(json)
@@ -144,7 +222,53 @@ class Ip_stats:
 
         hostname = '.'.join(hostname)
         return hostname
+    
+    def ensure_valid_ip_address(self, ip_map: Optional[Dict[str, str]] = None) -> bool:
+        """Does a simple incomplete validation of `self.ip_addr`.
+        If `self.ip_addr` in not an IP address,
+        than it might be a domain name, 
+        so a DNS lookup will be made to find corresponding IP address
+        and `self.ip_addr` will be set accordingly.
 
+        If `ip_map` is given and `self.ip_addr` is one of its keys,
+        then `self.ip_address` is set to the corresponding value in the map
+        at the begining and the method returns.
+
+        Parameters
+        ----------
+        ip_map: Dict[str, str], optional
+            memo for invalid ips,
+            maps invalid ip to corresponding valid ip
+
+        Returns
+        -------
+        bool
+            - `True` if `self.ip_addr` probably contains valid ip address
+              or was fixed to a valid ip.
+            - `False` if `self.ip_addr` is not valid
+              and the address could not be resolved
+        """        
+        if simple_ipv4_check(self.ip_addr):
+            return True
+        
+        if ip_map is not None:
+            ip = ip_map.get(self.ip_addr)
+
+            if ip is not None:
+                self.host_name = self.ip_addr
+                self.ip_addr = ip
+                return True
+        
+        valid, ip = host_to_ip(self.ip_addr)
+
+        if ip_map is not None:
+            ip_map[self.ip_addr] = ip
+
+        if valid:
+            self.host_name = self.ip_addr
+            self.ip_addr = ip
+        
+        return valid
 
     def add_entry(self, entry: Log_entry) -> int:
         # Returns 1 if <entry> is a new session, 0 otherwise
@@ -174,8 +298,12 @@ class Ip_stats:
         Ip_stats.database.insert_geolocation(self.ip_addr, self.geolocation)
     
     def geolocate_with_api(self):
+        if not self.ensure_valid_ip_address():
+            self.geolocation = "Unknown"
+            return
+
         token_max = 3
-        sleep_time = 2 # sec
+        sleep_time = 2 # seconds
 
         if Ip_stats.geoloc_tokens is None\
            or Ip_stats.last_geoloc_ts - time.time() > sleep_time:
@@ -221,17 +349,49 @@ class Stat_struct:
     __slots__ = ("stats",
                  "day_req_distrib", "week_req_distrib", "month_req_distrib",
                  "day_sess_distrib", "week_sess_distrib", "month_sess_distrib",)
+    """Data structure to store statistical informations about access log
 
-    def __init__(self, js:Optional[Dict]=None):
+    Attributes
+    ----------
+    stats: Dict[str, Ip_stats]
+        maps IPv4 as string to Ip_stats object
+        which stores information regarding the IPv4
+    day_req_distrib: List[int]
+        list of length 24,
+        i-th element represnts the sum of request
+        between i:00 to i+1:00 o'clock
+    day_sess_distrib: List[int]
+        list of length 24,
+        i-th element represnts the sum of sessions
+        between i:00 to i+1:00 o'clock
+    week_req_distrib: List[int]
+        list of length 7,
+        i-th element represnts the sum of request
+        in i-th day of week,
+        Monday is 0 and Sunday is 6
+    week_sess_distrib: List[int]
+        list of length 7,
+        i-th element represnts the sum of sessions
+        in i-th day of week.
+        Monday is 0 and Sunday is 6
+    month_req_distrib: Counter[Tuple[int, int], int]
+        maps tuples (<year>, <month>) to the sum
+        of requests in the month
+    month_sess_distrib: Counter[Tuple[int, int], int]
+        maps tuples (<year>, <month>) to the sum
+        of sessions in the month    
+    """
+
+    def __init__(self, js: Optional[Dict]=None):
         if js is not None:
             self.from_json(js)
             return 
 
         self.stats: Dict[str, Ip_stats] = {}
-        self.day_req_distrib = [0 for _ in range(24)]
-        self.day_sess_distrib = [0 for _ in range(24)]
-        self.week_req_distrib = [0 for _ in range(7)]
-        self.week_sess_distrib = [0 for _ in range(7)]
+        self.day_req_distrib = [0] * 24
+        self.day_sess_distrib = [0] * 24
+        self.week_req_distrib = [0] * 7
+        self.week_sess_distrib = [0] * 7
         self.month_req_distrib = Counter()
         self.month_sess_distrib = Counter()
 
@@ -269,23 +429,40 @@ class Stat_struct:
             self._set_attr(slot, js[slot])
 
 
+class Daily_stats(NamedTuple):
+    ips: Set[str]
+    requests: int
+    sessions: int
+
 class Log_stats:
+    """
+    Attributes
+    ----------
+    bots: Stat_struct
+        stores informations about bots for current year
+    poeple: Stat_struct
+        stores informations about humna users for current year
+    current_year: int, optional
+    daily_data: Dict[datetime.date, Daily_stats]
+        maps dates to a named tuples (<unique ips>, <number of requests>, <number of human sessions>)
+        the tuple contains information related to the given date
+        this information is used for making picture overview
+    year_stats: Dict[int, Tuple(Stat_struct, Stat_struct)]
+        maps years to tuples (<Stat_struct for bots>, <Stat_struct for people>)
+    config_f: str, optional
+        path to a blacklist file containing ip addressed considered as bots
+    bots_set: Set[str]
+        contains ip adresses from config_f
+    """
     def __init__(self, input: Optional[TextIO] = None, err_msg=False, config_f=None):
-        self.bots = Stat_struct() # for curretnt year
-        self.people = Stat_struct() # for curretnt year
+        self.bots = Stat_struct()
+        self.people = Stat_struct()
         self.err_msg = err_msg
-
-        self.daily_data: Dict[datetime.date, Tuple[Set[str], int, int]] = {}
-        # ^: date -> (unique_ips, requests_number, people_session_number)
-        # ^: for picture overview
-
+        self.daily_data: Dict[datetime.date, Daily_stats] = {}
         self.year_stats: Dict[int, Tuple(Stat_struct, Stat_struct)] = {}
-        # ^: year -> (bots, people); contains all Stat_structs
-
         self.current_year = None
 
         if config_f is not None:
-            # concfig file contains IP adresses considered as bots
             self.initialize_bot_set(config_f)
         else:
             self.bots_set = set()
@@ -300,8 +477,8 @@ class Log_stats:
             return self.people.json()
 
         if name == "daily_data":
-            return {d.__format__(DATE_FORMAT): (list(ips), r, s)
-                        for d, (ips, r, s) in self.daily_data.items()}
+            return {dt.__format__(DATE_FORMAT): (list(data.ips), data.requests, data.sessions)
+                        for dt, data in self.daily_data.items()}
         
         if name == "year_stats":
             return {y : (b.json(), p.json()) for y, (b, p) in self.year_stats.items()}
@@ -317,7 +494,7 @@ class Log_stats:
         elif name == "people":
             self.people = Stat_struct(data)
         elif name == "daily_data":
-            self.daily_data = {strp_date(d, DATE_FORMAT): (set(ips), r, s)
+            self.daily_data = {strp_date(d, DATE_FORMAT): Daily_stats(set(ips), r, s)
                                     for d, (ips, r, s) in data.items()}
         elif name == "year_stats":
             self.year_stats = {int(year): (Stat_struct(b), Stat_struct(p))
@@ -375,6 +552,67 @@ class Log_stats:
         with open(config_file_path, "r") as f:
             self.bots_set = set(ip_addr for ip_addr in f)
 
+    def resolve_and_group_ips(self, ip_map: Dict[str, str] = {}) -> None:
+        """Resolves ip address for all data in year_data
+        and merges same ips together
+
+        Parameters
+        ----------
+        ip_map: Dict[str, str], optional
+            maps invalid adress to resolved address
+        """
+        if self.err_msg:
+            timer = Ez_timer("IPs resolving and merging")
+
+        for year, vals in self.year_stats.items():
+            bots, people = vals[0], vals[1]
+
+            self._resolve_and_group_ips_from_stat_structs(bots, ip_map)
+            self._resolve_and_group_ips_from_stat_structs(people, ip_map)
+            self.year_stats[year] = (bots, people)
+
+        # resolve and merge self.daily_data
+        # now all ips were already resoved and invalid are saved in ip_map
+        for date, data in self.daily_data.items():
+            ips: Set[str] = data.ips
+            grouped_ips: Set[str] = set()
+
+            for ip in ips:
+                resolved = ip_map.get(ip)
+                grouped_ips.add(ip if resolved is None else resolved)            
+            self.daily_data[date] = Daily_stats(grouped_ips, data.requests, data.sessions)
+
+        if timer is not None:
+            timer.finish()
+                
+    def _resolve_and_group_ips_from_stat_structs(
+            self,
+            stat_struct: Stat_struct,
+            ip_map: Optional[Dict[str,str]] = None)\
+                -> None:
+        """Resolves ip address in `stat_struct`
+        and merges data for same ips together
+
+        Parameters
+        ----------
+        stat_struct: Stat_struct
+            Stat_struct which will be modified
+        ip_map: Dict[str, str], optional
+            maps invalid adress to resolved address
+        """
+        grouped_stats: Dict[str, Ip_stats] = {}
+        
+        for stat in stat_struct.stats.values():
+            stat.ensure_valid_ip_address(ip_map)
+            ip = stat.ip_addr
+
+            grouped = grouped_stats.get(ip)
+            stat.requests_num += 0 if grouped is None else grouped.requests_num
+            stat.sessions_num += 0 if grouped is None else grouped.sessions_num
+            grouped_stats[ip] = stat
+        
+        stat_struct.stats = grouped_stats
+               
     def make_stats_with_buffer_parser(self, input: TextIO):
         if self.err_msg:
             timer = Ez_timer("Data parsing and proccessing")
@@ -422,20 +660,21 @@ class Log_stats:
         if self.current_year != dt.year:
             self._switch_years(dt.year)
 
-        is_bot, bot_url = determine_bot(entry, lambda x: x.ip_addr in self.bots_set)
+        is_bot, bot_url = determine_bot(
+            entry,
+            lambda x: x.ip_addr in self.bots_set,
+            lambda x: RE_PATTERN_BOT_USER_AGENT.search(x.user_agent) is not None)
 
-        entry_key = bot_url if is_bot and len(bot_url) > 0\
-                    else entry.ip_addr
         stat_struct = self.bots if is_bot else self.people
 
-        ip_stat = stat_struct.stats.get(entry_key)
+        ip_stat = stat_struct.stats.get(entry.ip_addr)
         if ip_stat is None:
             ip_stat = Ip_stats(entry, is_bot, bot_url)
             
         new_sess = ip_stat.add_entry(entry)
         # ^: 1 if new session was created, 0 otherwise
 
-        stat_struct.stats[entry_key] = ip_stat
+        stat_struct.stats[entry.ip_addr] = ip_stat
         stat_struct.day_req_distrib[ip_stat.datetime.hour] += 1
         stat_struct.week_req_distrib[ip_stat.datetime.weekday()] += 1
         stat_struct.month_req_distrib[(ip_stat.datetime.year, ip_stat.datetime.month)] += 1
@@ -450,7 +689,7 @@ class Log_stats:
         ip_addrs.add(ip_stat.ip_addr)
         if not ip_stat.is_bot and new_sess:
             sess_num += 1
-        self.daily_data[date] = (ip_addrs, req_num + 1, sess_num)
+        self.daily_data[date] = Daily_stats(ip_addrs, req_num + 1, sess_num)
 
     def _switch_years(self, year: int):
         if self.current_year is not None:
@@ -459,13 +698,25 @@ class Log_stats:
         self.current_year = year
         self.bots, self.people =\
             self.year_stats.get(year, (Stat_struct(), Stat_struct()))
+    
+    def _display_overview_imgs(self, html: Html_maker):
+        overview = """<h2>Picture overview</h2>
+<h3>Requests</h3>
+<img src='requests_{0}_overview.png'>
+<h3>Sessions of human users</h3>
+<img src='sessions_{0}_overview.png'>
+<h3>Unique IP addresses</h3>
+<img src='ips_{0}_overview.png'>
+"""
+        html.append(overview.format(self.current_year))
 
     def print_stats(self,
                     output: TextIO,
                     geoloc_sample_size,
                     selected=True,
                     year=None,
-                    geoloc_db:Optional[str]= None):
+                    geoloc_db:Optional[str]= None,
+                    display_overview_imgs: bool = False):
         html: Html_maker = Html_maker()
         
         if year is not None:
@@ -477,14 +728,16 @@ class Log_stats:
 
         if self.err_msg:
             timer = Ez_timer("making charts of bots and human users")
+        
+        if display_overview_imgs:
+            self._display_overview_imgs(html)
 
         self._print_bots(html, selected)
         self._print_users(html, selected)
         if self.err_msg:
             timer.finish()
 
-        self._print_countries_stats(
-            html, geoloc_sample_size, selected)
+        self._print_countries_stats( html, geoloc_sample_size, selected)
 
         print(html.html(), file=output)
 
@@ -554,9 +807,16 @@ class Log_stats:
                         html: Html_maker,
                         header_str: str,
                         req_sorted_stats: List[Ip_stats]) -> None:
+        total_session_num = sum(map(lambda ip_stat: ip_stat.sessions_num, req_sorted_stats))
+        fi_mu_session_num = 0
+        for stat in req_sorted_stats:
+            if RE_PATTERN_FI_MU_IPv4.search(stat.ip_addr) is not None:
+                fi_mu_session_num += stat.sessions_num
+
         html.append(make_table("Overview",
-                               [header_str],
-                               [[str(len(req_sorted_stats))]],
+                               [header_str, "Total sessions count", "FI MU sessions", "external sessions"],
+                               [[str(len(req_sorted_stats)), str(total_session_num),
+                                 str(fi_mu_session_num), str(total_session_num-fi_mu_session_num)]],
                                ))
 
     def _sort_stats(self,
@@ -587,14 +847,24 @@ class Log_stats:
                 ip_stat.update_geolocation()
                 
             # yield a row
-            yield [f"{i + 1}",
-                   ip_stat.bot_url if bots else ip_stat.ip_addr,
-                   ip_stat.get_short_host_name(),
-                   ip_stat.geolocation,
-                   ip_stat.requests_num,
-                   ip_stat.sessions_num
-                  ]
-    
+            if bots:
+                yield [f"{i + 1}",
+                    ip_stat.ip_addr,
+                    ip_stat.get_short_host_name(),
+                    ip_stat.bot_url,
+                    ip_stat.geolocation,
+                    ip_stat.requests_num,
+                    ip_stat.sessions_num
+                    ]
+            else:
+                yield [f"{i + 1}",
+                    ip_stat.ip_addr,
+                    ip_stat.get_short_host_name(),
+                    ip_stat.geolocation,
+                    ip_stat.requests_num,
+                    ip_stat.sessions_num
+                    ]
+        
     def _attribs_for_most_freq_table_iter(self, data: List[Ip_stats], n: int):
         n = min(n, len(data))
 
@@ -617,7 +887,7 @@ class Log_stats:
 
         if bots:
             group_name = "bots"
-            header = ["Rank", "Bot's url", "Host name",
+            header = ["Rank", "Bot's IP", "Host name", "Bot's url",
                       "Geolocation", "Requests count", "Sessions count"]
         else:
             group_name = "human users"
