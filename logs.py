@@ -1,8 +1,17 @@
-from optparse import OptionParser
-from logs.statistics.processing import  Log_stats
-from logs.picture.picture_overview import make_pictures
 import sys
+from optparse import OptionParser
+from typing import Optional 
 
+from logs.statistics.picture_overview import make_pictures
+from logs.statistics.print import make_histogram, print_stats, test_geolocation
+from logs.statistics.geoloc_db import GeolocDB
+from logs.statistics.processing import (
+    Log_stats,
+    load_log_stats,
+    make_stats,
+    resolve_and_group_ips,
+    save_log_stats,
+)
 
 OVERVIEW = """<h2>Overview</h2>
 <h3>Requests</h3>
@@ -16,116 +25,219 @@ OVERVIEW = """<h2>Overview</h2>
 
 def parse_options():
     parser = OptionParser()
-    parser.add_option("-g", "--geolocation",
-                  action="store", type="int", dest="geoloc_ss",
-                  default=1000, help="specify sample size for geolocation")
-    parser.add_option("-e", "--error",
-                  action="store_true", dest="error", default=False,
-                  help="print execution durations to stderr")
-    parser.add_option("-T", "--test",
-                  action="store", type="int", dest="test", default=0,
-                  help="test geolocation, specify number of repetitions")
-    parser.add_option("-y", "--year",
-                  action="store", type="int", dest="year", default=0,
-                  help="prints log statistics of given year to std.out")
-    parser.add_option("-s", "--save",
-                  action="store", type="str", dest="output_f", default=None,
-                  help="export the statisics as json, specify name of the file")
-    parser.add_option("-n", "--name",
-                  action="store", type="str", dest="name", default=None,
-                  help="specify name of the log. Name will be heading 1"
-                        " in logs_index.html file")
-    parser.add_option("-l", "--load",
-                  action="store", type="str", dest="input_f", default=None,
-                  help="load the statisics from json, specify the name of the file")
-    parser.add_option("-H", "--histogram",
-                  action="store_true", dest="hist", default=False,
-                  help="makes html file 'hist.html' with histograms")
-    parser.add_option("-p", "--pictureoverview",
-                  action="store_true", dest="pic_overview", default=False,
-                  help="makes picture overview")
-    parser.add_option("-c", "--clean",
-                  action="store_true", dest="clean", default=False,
-                  help="when no --year is given and --clean is set, "
-                       "then no charts are made. Good for use with --test,  "
-                       "--histogram or --pictureoverview")
-    parser.add_option("-i", "--ignore",
-                  action="store_true", dest="ignore", default=False,
-                  help="ignore data from std input, "
-                       "has to be used together with --load option")
-    parser.add_option("-C", "--config",
-                  action="store", type="str", dest="config_f", default=None,
-                  help="specify the path of configuration file, "
-                       "ip addresses in config file will be clasified as bots")  
-    parser.add_option("-d", "--geoloc-database",
-                  action="store", type="str", dest="geoloc_db", default=None,
-                  help="specify the path of geolocation database")             
+    parser.add_option(
+        "-g",
+        "--geolocation",
+        action="store",
+        type="int",
+        dest="geoloc_ss",
+        default=1000,
+        help="specify sample size for geolocation",
+    )
+    parser.add_option(
+        "-e",
+        "--error",
+        action="store_true",
+        dest="error",
+        default=False,
+        help="print execution durations to stderr",
+    )
+    parser.add_option(
+        "-T",
+        "--test",
+        action="store",
+        type="int",
+        dest="test",
+        default=0,
+        help="test geolocation, specify number of repetitions",
+    )
+    parser.add_option(
+        "-y",
+        "--year",
+        action="store",
+        type="int",
+        dest="year",
+        default=0,
+        help="prints log statistics of given year to std.out",
+    )
+    parser.add_option(
+        "-s",
+        "--save",
+        action="store",
+        type="str",
+        dest="output_f",
+        default=None,
+        help="export the statisics as json, specify name of the file",
+    )
+    parser.add_option(
+        "-n",
+        "--name",
+        action="store",
+        type="str",
+        dest="name",
+        default=None,
+        help="specify name of the log. Name will be heading 1"
+        " in logs_index.html file",
+    )
+    parser.add_option(
+        "-l",
+        "--load",
+        action="store",
+        type="str",
+        dest="load_file",
+        default=None,
+        help="load the statisics from json, specify the name of the file",
+    )
+    parser.add_option(
+        "-H",
+        "--histogram",
+        action="store_true",
+        dest="hist",
+        default=False,
+        help="makes html file 'hist.html' with histograms",
+    )
+    parser.add_option(
+        "-p",
+        "--pictureoverview",
+        action="store_true",
+        dest="pic_overview",
+        default=False,
+        help="makes picture overview",
+    )
+    parser.add_option(
+        "-c",
+        "--clean",
+        action="store_true",
+        dest="clean",
+        default=False,
+        help="when no --year is given and --clean is set, "
+        "then no charts are made. Good for use with --test,  "
+        "--histogram or --pictureoverview",
+    )
+    parser.add_option(
+        "-i",
+        "--ignore",
+        action="store_true",
+        dest="ignore",
+        default=False,
+        help="ignore data from std input, "
+        "has to be used together with --load option",
+    )
+    parser.add_option(
+        "-C",
+        "--config",
+        action="store",
+        type="str",
+        dest="config_f",
+        default=None,
+        help="specify the path of configuration file, "
+        "ip addresses in config file will be clasified as bots",
+    )
+    parser.add_option(
+        "-d",
+        "--geoloc-database",
+        action="store",
+        type="str",
+        dest="geoloc_db",
+        default=None,
+        help="specify the path of geolocation database",
+    )
+    parser.add_option(
+        "-f",
+        "--input_log",
+        action="store",
+        type="str",
+        dest="input",
+        default=None,
+        help="specify the path of input log file",
+    )
 
     options, _ = parser.parse_args()
     return options
 
 
 def main():
-    
     options = parse_options()
-    
-    stats = Log_stats(err_msg=options.error, config_f=options.config_f)
 
-    if options.input_f is not None:
-        stats.load(options.input_f)
+    if options.load_file is not None:
+        log_stats = load_log_stats(options.load_file, options.error)
 
-    if options.input_f is None\
-       or not options.ignore:
-        stats.make_stats(sys.stdin)
+    if options.load_file is None or not options.ignore:
+        if options.input is not None:
+            with open(options.input, 'r') as input_f:
+                log_stats = make_stats(
+                    input_f, config_f=options.config_f, err_msg=options.error
+                )
+        log_stats = make_stats(
+            sys.stdin, config_f=options.config_f, err_msg=options.error
+        )
+
+    geoloc_db = None if options.geoloc_db is None else GeolocDB(options.geoloc_db)
 
     if options.year > 0:
-        stats.print_stats(sys.stdout,
-                          options.geoloc_ss,
-                          selected=False,
-                          year=options.year,
-                          geoloc_db=options.geoloc_db,
-                          display_overview_imgs=True)
+        print_stats(
+            log_stats,
+            output=sys.stdout,
+            geoloc_sample_size=options.geoloc_ss,
+            selected=False,
+            year=options.year,
+            geoloc_db=geoloc_db,
+            display_overview_imgs=True,
+        )
+
     elif not options.clean:
-        make_log_stats(stats, options, selected=False)
-    
+        make_log_stats(log_stats, options, selected=False, geoloc_db=geoloc_db)
+
     if options.test > 0:
         with open("_test.html", "w") as f:
-            stats.test_geolocation(f,
-                                   options.geoloc_ss,
-                                   selected=False,
-                                   repetitions=options.test)
+            test_geolocation(
+                log_stats,
+                output=f,
+                geoloc_sample_size=options.geoloc_ss,
+                selected=False,
+                repetitions=options.test,
+                geoloc_db=geoloc_db,
+            )
     if options.pic_overview:
-        years = stats.year_stats.keys()
-        make_pictures(stats, separate_years=years)
+        years = log_stats.year_stats.keys()
+        make_pictures(log_stats, separate_years=years)
 
     if options.hist:
-        stats.make_histogram("_hist.html", selected=False)
+        make_histogram(log_stats, "_hist.html")
 
     if options.output_f is not None:
-        stats.save(options.output_f)
+        save_log_stats(log_stats, options.output_f, err_msg=options.error)
 
 
-def make_log_stats(log_stats: Log_stats, options, selected: bool):
-    log_stats.resolve_and_group_ips(ip_map={})
+def make_log_stats(log_stats: Log_stats, options, selected: bool, geoloc_db: Optional[GeolocDB] = None):
+    resolve_and_group_ips(log_stats, ip_map={}, err_msg=options.error)
     make_pictures(log_stats)
 
     for year in sorted(log_stats.year_stats.keys()):
         with open(f"{year}.html", "w") as file:
-            log_stats.print_stats(file, options.geoloc_ss, selected, year, 
-                                  geoloc_db=options.geoloc_db, display_overview_imgs=True)
-    
+            print_stats(
+                log_stats,
+                file,
+                geoloc_sample_size=options.geoloc_ss,
+                selected=selected,
+                year=year,
+                geoloc_db=geoloc_db,
+                display_overview_imgs=True,
+                err_msg=options.error,
+            )
+
     with open("logs_index.html", "w") as file:
         file.write("<html>\n<head>\n<style>")
         file.write(r"img { max-width: 100%; }")
         file.write("</style>\n</head>\n</body>\n")
-        
+
         if options.name is not None:
             file.write(f"<h1>{options.name}</h1>\n")
         if options.pic_overview:
             file.write(OVERVIEW)
         if options.hist:
             file.write("<h2>Histogram</h2>\n")
-            file.write(f"<ul><li><a href='_hist.html'> Histogram </a></li></ul>\n")
+            file.write("<ul><li><a href='_hist.html'> Histogram </a></li></ul>\n")
 
         file.write("<h2>Statistics per year</h2>\n")
         file.write("<ul>\n")
@@ -136,5 +248,5 @@ def make_log_stats(log_stats: Log_stats, options, selected: bool):
         file.write("</body>\n</html>\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
