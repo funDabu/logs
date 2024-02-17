@@ -1,22 +1,21 @@
 import datetime
 import json
-import sys
 import re
+import sys
 from typing import Callable, Dict, Optional, Set, TextIO, Tuple
 
-from logs.statistics.constants import LOG_DT_FORMAT
-from logs.statistics.helpers import Ez_timer
 from logs.parser.log_parser import Log_entry, regex_parser
 from logs.statistics.constants import (
     BOT_URL_REGEX,
     BOT_USER_AGENT_REGEX,
+    LOG_DT_FORMAT,
     SESSION_DELIM,
 )
 from logs.statistics.dailystat import Daily_stats
 from logs.statistics.groupstats import Group_stats
+from logs.statistics.helpers import Ez_timer
 from logs.statistics.ipsatats import Ip_stats
 from logs.statistics.logstats import Log_stats
-
 
 RE_PATTERN_BOT_USER_AGENT = re.compile(BOT_USER_AGENT_REGEX)
 RE_PATTERN_BOT_URL = re.compile(BOT_URL_REGEX)
@@ -196,8 +195,6 @@ def _resolve_and_group_ips_in_group_stats(
     g_stats.stats = grouped_stats
 
 
-
-
 def _log_stats_add_entry(
     log_stats: Log_stats, entry: Log_entry, bots_set: Optional[Set[str]]
 ):
@@ -234,8 +231,9 @@ def _log_stats_add_entry(
 
     # making daily_data for picture overview
     date = ip_stat.datetime.date()
-    _, ip_addrs, req_num, sess_num = \
-        log_stats.daily_data.get(date, Daily_stats(date, set(), 0, 0))
+    _, ip_addrs, req_num, sess_num = log_stats.daily_data.get(
+        date, Daily_stats(date, set(), 0, 0)
+    )
     ip_addrs.add(ip_stat.ip_addr)
     if not ip_stat.is_bot and new_sess:
         sess_num += 1

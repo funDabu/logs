@@ -11,6 +11,7 @@ class Daily_stats(NamedTuple):
     requests: int
     sessions: int
     """
+
     date: datetime.date
     ips: Set[str]
     requests: int

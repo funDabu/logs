@@ -1,17 +1,15 @@
-from PIL import Image, ImageDraw, ImageFont
 from typing import Optional
 
+from PIL import Image, ImageDraw, ImageFont
 
-def draw_label(x: int,
-               y: int,
-               img: Image.Image,
-               label: str,
-               rotation: int = 0,
-               anchor: str = "tl"):
+
+def draw_label(
+    x: int, y: int, img: Image.Image, label: str, rotation: int = 0, anchor: str = "tl"
+):
     """anchor: "[tcb][lcr]" """
 
     w, h = get_text_size(label)
-    label_img = Image.new('L', (w, h), 255)
+    label_img = Image.new("L", (w, h), 255)
     label_draw = ImageDraw.Draw(label_img)
     label_draw.text((0, 0), label, fill=0)
 
@@ -31,9 +29,7 @@ def draw_label(x: int,
     img.paste(label_img, (x, y))
 
 
-def get_text_size(text: str,
-                  font: Optional[ImageFont.ImageFont] = None)\
-        -> int:
+def get_text_size(text: str, font: Optional[ImageFont.ImageFont] = None) -> int:
     if font is None:
         font = ImageFont.load_default()
 

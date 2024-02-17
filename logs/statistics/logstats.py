@@ -1,12 +1,9 @@
 import datetime
+from typing import Dict, Tuple
 
 from logs.statistics.constants import DATE_FORMAT
-from logs.statistics.groupstats import Group_stats
 from logs.statistics.dailystat import Daily_stats
-
-from typing import Tuple, Dict
-
-
+from logs.statistics.groupstats import Group_stats
 
 
 class Log_stats:
@@ -25,26 +22,26 @@ class Log_stats:
     year_stats: Dict[int, Tuple(Group_stats, Group_stats)]
         maps years to tuples (<Group_stats for bots>, <Group_stats for people>)
     """
+
     def __init__(self):
         self.bots: Group_stats = Group_stats()
         self.people: Group_stats = Group_stats()
         self.daily_data: Dict[datetime.date, Daily_stats] = {}
         self.year_stats: Dict[int, Tuple[Group_stats, Group_stats]] = {}
         self.current_year: int = None
-        
+
     def switch_year(self, year: int):
         """sets `self.current_year` to `year`
         and sets `self.bots`, `self.people` to `year` also"""
         if year not in self.year_stats:
             self.year_stats[year] = (Group_stats(), Group_stats())
-        
+
         self.bots, self.people = self.year_stats.get(year)
         self.current_year = year
 
-    
     def json(self):
         return {key: self._get_attr(key) for key in self.__dict__.keys()}
-    
+
     def from_json(self, js):
         for key, data in js.items():
             self._set_attr(key, data)
@@ -56,35 +53,44 @@ class Log_stats:
             self.people = Group_stats(data)
         elif name == "daily_data":
             self.daily_data = {
-                strp_date(d, DATE_FORMAT): Daily_stats(strp_date(d, DATE_FORMAT), set(ips), r, s)
-                    for d, (ips, r, s) in data.items()
+                strp_date(d, DATE_FORMAT): Daily_stats(
+                    strp_date(d, DATE_FORMAT), set(ips), r, s
+                )
+                for d, (ips, r, s) in data.items()
             }
         elif name == "year_stats":
-            self.year_stats = {int(year): (Group_stats(b), Group_stats(p))
-                                    for year, (b, p) in data.items()}
+            self.year_stats = {
+                int(year): (Group_stats(b), Group_stats(p))
+                for year, (b, p) in data.items()
+            }
         else:
             setattr(self, name, data)
-    
-    def _get_attr(self, name:str):
+
+    def _get_attr(self, name: str):
         if name == "bots":
             return self.bots.json()
         if name == "people":
             return self.people.json()
 
         if name == "daily_data":
-            return {dt.__format__(DATE_FORMAT): (list(data.ips), data.requests, data.sessions)
-                        for dt, data in self.daily_data.items()}
-        
+            return {
+                dt.__format__(DATE_FORMAT): (
+                    list(data.ips),
+                    data.requests,
+                    data.sessions,
+                )
+                for dt, data in self.daily_data.items()
+            }
+
         if name == "year_stats":
-            return {y : (b.json(), p.json()) for y, (b, p) in self.year_stats.items()}
-        
+            return {y: (b.json(), p.json()) for y, (b, p) in self.year_stats.items()}
+
         return getattr(self, name, None)
-    
- 
+
+
 def strp_date(date: str, format: str) -> datetime.date:
     dt = datetime.datetime.strptime(date, format)
     return dt.date()
-
 
     # DEBUG
     # def save(self, f_name: str):
@@ -99,8 +105,6 @@ def strp_date(date: str, format: str) -> datetime.date:
 
     #     with open(f_name, "w") as f:
     #         json.dump(output, f)
-        
+
     #     if self.err_msg:
     #         time1.finish()
-
-    

@@ -14,10 +14,12 @@ class Graph_value(NamedTuple):
         label of the value
     outlier: bool
     """
+
     x_step: int
     value: int
     label: str
     outlier: bool = False
+
 
 Graph_data = List[Graph_value]
 """Contains `Graph_values` in their x-axis order"""

@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw
 
 class PIL_data:
     """Data structure to strore rendered grapt value"""
+
     __slots__ = ("rectangle", "arrow", "x_label", "y_label", "outlier")
 
     def __init__(self, outlier=False) -> None:
@@ -13,17 +14,14 @@ class PIL_data:
         self.y_label = ""
         self.outlier = outlier
 
-    def draw(self,
-             img: Image.Image,
-             draw: ImageDraw.ImageDraw,
-             color=(0, 0, 0)):
+    def draw(self, img: Image.Image, draw: ImageDraw.ImageDraw, color=(0, 0, 0)):
         rec = self.rectangle
         draw.rectangle(rec, fill=color)
 
-        draw_label(rec[0][0], rec[0][1] + 2,
-                    img, self.x_label,
-                    rotation=90, anchor="tl")
-        
+        draw_label(
+            rec[0][0], rec[0][1] + 2, img, self.x_label, rotation=90, anchor="tl"
+        )
+
         if self.outlier:
             overstep = 2
             height = 5
@@ -33,4 +31,4 @@ class PIL_data:
             v = ((rec[0][0] + rec[1][0]) // 2, rec[1][1] - height - 1)
 
             draw.polygon([b1, b2, v], fill=(0, 0, 0))
-            draw_label(v[0], v[1]-2, img, self.y_label, 90, "bc")
+            draw_label(v[0], v[1] - 2, img, self.y_label, 90, "bc")

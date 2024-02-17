@@ -77,8 +77,9 @@ def make_picture(
     draw = ImageDraw.Draw(img)
 
     if right_data is not None:
-        for pil_data in _render_data(right_data, height, x0=left_margin + 1,
-                                    y0=zero_line, spacing=right_spacing):
+        for pil_data in _render_data(
+            right_data, height, x0=left_margin + 1, y0=zero_line, spacing=right_spacing
+        ):
             pil_data.draw(img, draw, (170, 170, 170))
 
     _annotate_y_axes(
@@ -90,23 +91,25 @@ def make_picture(
         zero_line,
         right_maximum=None if right_data is None else _data_max(right_data),
         right_axis_name=right_y_axis_name,
-        ticks=ticks
+        ticks=ticks,
     )
 
-    for pil_data in _render_data(data, height, x0=left_margin + 1, y0=zero_line, spacing=spacing):
+    for pil_data in _render_data(
+        data, height, x0=left_margin + 1, y0=zero_line, spacing=spacing
+    ):
         pil_data.draw(img, draw)
 
     # title
-    draw_label(x = left_margin + (graph_width // 2),
-               y=2,
-               img=img,
-               label=title,
-               anchor="tc")
+    draw_label(
+        x=left_margin + (graph_width // 2), y=2, img=img, label=title, anchor="tc"
+    )
 
     img.save(output_name, format="png")
 
 
-def _render_data(data: Graph_data, height: int, x0: int, y0: int, spacing: int) -> Iterator[PIL_data]:
+def _render_data(
+    data: Graph_data, height: int, x0: int, y0: int, spacing: int
+) -> Iterator[PIL_data]:
     """Transorms graph_values in `data` to `PIL_data`
     and yields them."""
     maximum = _data_max(data)
@@ -185,4 +188,3 @@ def _annotate_y_axes(
 
         draw.rectangle([(2, y), (width - 2, y)], fill=(100, 100, 100))
         y -= step
-
