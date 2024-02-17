@@ -172,8 +172,11 @@ def main():
             sys.stdin, config_f=options.config_f, err_msg=options.error
         )
 
-    geoloc_db = None if options.geoloc_db is None else GeolocDB(options.geoloc_db)
+    if options.output_f is not None:
+        save_log_stats(log_stats, options.output_f, err_msg=options.error)
 
+    geoloc_db = None if options.geoloc_db is None else GeolocDB(options
+                                                                .geoloc_db)
     if options.year > 0:
         print_stats(
             log_stats,
@@ -205,8 +208,6 @@ def main():
     if options.hist:
         make_histogram(log_stats, "_hist.html")
 
-    if options.output_f is not None:
-        save_log_stats(log_stats, options.output_f, err_msg=options.error)
 
 
 def make_log_stats(log_stats: Log_stats, options, selected: bool, geoloc_db: Optional[GeolocDB] = None):

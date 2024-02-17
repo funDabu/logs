@@ -1,20 +1,82 @@
 import datetime
 import json
 import sys
+import re
 from typing import Callable, Dict, Optional, Set, TextIO, Tuple
 
-from logs.helpers.constants import LOG_DT_FORMAT
-from logs.helpers.timer import Ez_timer
+from logs.statistics.constants import LOG_DT_FORMAT
+from logs.statistics.helpers import Ez_timer
 from logs.parser.log_parser import Log_entry, regex_parser
 from logs.statistics.constants import (
-    RE_PATTERN_BOT_URL,
-    RE_PATTERN_BOT_USER_AGENT,
+    BOT_URL_REGEX,
+    BOT_USER_AGENT_REGEX,
     SESSION_DELIM,
 )
 from logs.statistics.dailystat import Daily_stats
 from logs.statistics.groupstats import Group_stats
 from logs.statistics.ipsatats import Ip_stats
 from logs.statistics.logstats import Log_stats
+
+
+RE_PATTERN_BOT_USER_AGENT = re.compile(BOT_USER_AGENT_REGEX)
+RE_PATTERN_BOT_URL = re.compile(BOT_URL_REGEX)
+
+
+def make_stats(
+    input: TextIO, config_f: Optional[str], err_msg: bool = False
+) -> Log_stats:
+    """Parses and processes log in `input`
+    and stores statistical information about the log in `log_stats`.
+
+    Parameters
+    ----------
+    input: TextIO
+        log files as plaintext
+    log_stats: Log_stats
+    config_f: str, optional
+        path to a blacklist file containing ip addressed considered as bots
+    err_msg: bool, optional
+        default: `False`; if `True` then the duration of making stats will be
+        printed to std.err
+
+    Returns
+    -------
+    Log_stat
+        containing information about log from `input`
+
+    Note
+    ----
+    Log entries in input has to be ordered by their time.
+    New session is recognized when time of given entry is
+    at least SESSION_DELIM seconds after the time of the
+    last entry for the same host.
+
+    """
+    if err_msg:
+        timer = Ez_timer("Data parsing and proccessing")
+
+    log_stats = Log_stats()
+
+    bots_set = set()
+    if config_f is not None:
+        with open(config_f, "r") as f:
+            bots_set = set(ip_addr for ip_addr in f)
+
+    for buffer in regex_parser(input):
+        for entry in buffer:
+            if len(entry) == 9:  # correct format of the log entry
+                _log_stats_add_entry(log_stats, entry, bots_set)
+            elif err_msg:
+                print(
+                    f"log entry parsing failed (len={len(entry)}):\n",
+                    entry,
+                    file=sys.stderr,
+                )
+
+    if err_msg:
+        timer.finish()
+
+    return log_stats
 
 
 def _determine_bot(
@@ -100,7 +162,7 @@ def resolve_and_group_ips(
             resolved = ip_map.get(ip)
             grouped_ips.add(ip if resolved is None else resolved)
         log_stats.daily_data[date] = Daily_stats(
-            grouped_ips, data.requests, data.sessions
+            date, grouped_ips, data.requests, data.sessions
         )
 
     if err_msg:
@@ -134,61 +196,6 @@ def _resolve_and_group_ips_in_group_stats(
     g_stats.stats = grouped_stats
 
 
-def make_stats(
-    input: TextIO, config_f: Optional[str], err_msg: bool = False
-) -> Log_stats:
-    """Parses and processes log in `input`
-    and stores statistical information about the log in `log_stats`.
-
-    Parameters
-    ----------
-    input: TextIO
-        log files as plaintext
-    log_stats: Log_stats
-    config_f: str, optional
-        path to a blacklist file containing ip addressed considered as bots
-    err_msg: bool, optional
-        default: `False`; if `True` then the duration of making stats will be
-        printed to std.err
-
-    Returns
-    -------
-    Log_stat
-        containing information about log from `input`
-
-    Note
-    ----
-    Log entries in input has to be ordered by their time.
-    New session is recognized when time of given entry is
-    at least SESSION_DELIM seconds after the time of the
-    last entry for the same host.
-
-    """
-    if err_msg:
-        timer = Ez_timer("Data parsing and proccessing")
-
-    log_stats = Log_stats()
-
-    bots_set = set()
-    if config_f is not None:
-        with open(config_f, "r") as f:
-            bots_set = set(ip_addr for ip_addr in f)
-
-    for buffer in regex_parser(input):
-        for entry in buffer:
-            if len(entry) == 9:  # correct format of the log entry
-                _log_stats_add_entry(log_stats, entry, bots_set)
-            elif log_stats.err_msg:
-                print(
-                    f"log entry parsing failed (len={len(entry)}):\n",
-                    entry,
-                    file=sys.stderr,
-                )
-
-    if err_msg:
-        timer.finish()
-
-    return log_stats
 
 
 def _log_stats_add_entry(
@@ -210,10 +217,7 @@ def _log_stats_add_entry(
 
     is_bot, bot_url = determine_bot(entry, bots_set)
     group_stats = log_stats.bots if is_bot else log_stats.people
-
-    ip_stat = group_stats.stats.get(entry.ip_addr)
-    if ip_stat is None:
-        ip_stat = Ip_stats(entry, is_bot, bot_url)
+    ip_stat = group_stats.stats.get(entry.ip_addr, Ip_stats(entry, is_bot, bot_url))
 
     new_sess = _ip_stats_add_entry(ip_stat, entry)
     # 1 if new session was created, 0 otherwise
@@ -230,11 +234,12 @@ def _log_stats_add_entry(
 
     # making daily_data for picture overview
     date = ip_stat.datetime.date()
-    ip_addrs, req_num, sess_num = log_stats.daily_data.get(date, (set(), 0, 0))
+    _, ip_addrs, req_num, sess_num = \
+        log_stats.daily_data.get(date, Daily_stats(date, set(), 0, 0))
     ip_addrs.add(ip_stat.ip_addr)
     if not ip_stat.is_bot and new_sess:
         sess_num += 1
-    log_stats.daily_data[date] = Daily_stats(ip_addrs, req_num + 1, sess_num)
+    log_stats.daily_data[date] = Daily_stats(date, ip_addrs, req_num + 1, sess_num)
 
 
 def _ip_stats_add_entry(ip_stat: Ip_stats, entry: Log_entry) -> int:

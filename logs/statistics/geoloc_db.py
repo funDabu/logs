@@ -3,7 +3,8 @@ import os
 import datetime as dt
 from typing import Optional, Tuple
 
-from logs.helpers.constants import DATE_FORMAT, GEOLOC_DB_PATH
+from logs.statistics.constants import DATE_FORMAT, GEOLOC_DB_PATH
+
 
 class GeolocDB:
     def __init__(self, path: str = GEOLOC_DB_PATH):

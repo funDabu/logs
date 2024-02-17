@@ -1,23 +1,17 @@
-from logs.helpers.constants import TIME_REGEX, LOG_DT_FORMAT
+from logs.statistics.constants import LOG_DT_FORMAT
 import argparse
 import os
 import sys
 import datetime as dt
 import re
 import gzip
-
-
-"""
-========== TYPES ==========
-"""
-
-from typing import TextIO, Optional, List, Iterator, Iterable, Tuple, Dict, Callable
+from typing import TextIO, Optional, List, Iterator, Tuple, Dict, Callable
 
 """
 ========== CONSTANTS ==========
 """
 
-
+TIME_REGEX = r'\S+ .+? .+? \[(.+?)\] '
 RE_PROG_TIME = re.compile(TIME_REGEX)
 
 TIME_PROXI_RANGE = 60  # in seconds

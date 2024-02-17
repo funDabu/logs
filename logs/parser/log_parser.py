@@ -1,40 +1,44 @@
 import re
 
-from typing import  TextIO, Iterator
+from typing import  TextIO, Iterator, Callable
 
-from logs.helpers.constants import LOG_ENTRY_REGEX
 from logs.parser.logentry import Log_entry
 
-RE_PROG_ENTRY = re.compile(LOG_ENTRY_REGEX)
+# LOG_ENTRY_REGEX = r'([0-9.]+?) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+?) "(.*?)(?<!\\)" "(.*?)(?<!\\)"'
+# matches only numbers and dots in the first - 'Host' group - eg. excepts only IPv4 as a host
+LOG_ENTRY_REGEX = r'(\S+) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+?) "(.*?)(?<!\\)" "(.*?)(?<!\\)"'
+# matches all nonwhitespace characters in the first - 'Host' group - e.g allows for both IP address and hostname as a host
 
 
-def general_parse_entry_with_regex(line: str, re_prog) -> Log_entry:
-    # re_prog is compiled re.Pattern object
+def get_log_entry_parser(re_prog) -> Callable[[str], Log_entry]:
+    """`re_prog` is compiled re.Pattern object of log entry regex"""
 
-    result = Log_entry()
-    match = re_prog.search(line)
+    def log_entry_parser(line: str) -> Log_entry:
 
-    if match is None:
-        return result
+        result = Log_entry()
+        match = re_prog.search(line)
+
+        if match is None:
+            return result
+        
+        result.length = match.lastindex
+        for i in range(match.lastindex):
+            setattr(result, result.__slots__[i], match.group(i+1))
+        
+        return result  
     
-    result.length = match.lastindex
-    for i in range(match.lastindex):
-        setattr(result, result.__slots__[i], match.group(i+1))
-    
-    return result
-
-
-def parse_entry_with_regex(line: str) -> Log_entry:
-    return general_parse_entry_with_regex(line, RE_PROG_ENTRY)
+    return log_entry_parser
 
 
 def regex_parser(input: TextIO, 
                  buffer_size: int = 1000)\
         -> Iterator[Log_entry]:
     """Reads `buffer_size` lines from `input`,
-    parses them with regex and yields an iterator
-    `buffer_size` Log_entries"""
-        
+    parses them with regex and yields an iterator of
+    `buffer_size` of Log_entries
+    """
+    
+    re_prog_entry = re.compile(LOG_ENTRY_REGEX)
     buffer = []
     i = 0
 
@@ -42,9 +46,9 @@ def regex_parser(input: TextIO,
         buffer.append(line)
         i += 1
         if i == buffer_size:
-            yield map(parse_entry_with_regex, buffer)
+            yield map(get_log_entry_parser(re_prog_entry), buffer)
             buffer = []
             i = 0
         
     if i > 0:
-        yield map(parse_entry_with_regex, buffer)
+        yield map(get_log_entry_parser(re_prog_entry), buffer)

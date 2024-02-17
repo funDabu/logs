@@ -2,15 +2,18 @@ import os
 import matplotlib.pyplot as plt
 import io
 import random
+import re
 
 from typing import List, TextIO, Optional, Tuple
 
 from logs.statistics.processing import Log_stats, Ip_stats
 from logs.htmlmaker.html_maker import Html_maker, make_table
-from logs.helpers.timer import Ez_timer
+from logs.statistics.helpers import Ez_timer
 from logs.statistics.geoloc_db import GeolocDB
-from logs.helpers.constants import MONTHS, DAYS
-from logs.statistics.constants import RE_PATTERN_FI_MU_IPv4
+from logs.statistics.constants import MONTHS, DAYS
+from logs.statistics.constants import FI_MU_IPv4_REGEX
+
+RE_PATTERN_FI_MU_IPv4 = re.compile(FI_MU_IPv4_REGEX)
 
 
 def print_stats(

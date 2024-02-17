@@ -1,7 +1,6 @@
 import datetime
 
-from logs.helpers.functions import strp_date
-from logs.helpers.constants import DATE_FORMAT
+from logs.statistics.constants import DATE_FORMAT
 from logs.statistics.groupstats import Group_stats
 from logs.statistics.dailystat import Daily_stats
 
@@ -27,11 +26,11 @@ class Log_stats:
         maps years to tuples (<Group_stats for bots>, <Group_stats for people>)
     """
     def __init__(self):
-        self.bots = Group_stats()
-        self.people = Group_stats()
+        self.bots: Group_stats = Group_stats()
+        self.people: Group_stats = Group_stats()
         self.daily_data: Dict[datetime.date, Daily_stats] = {}
         self.year_stats: Dict[int, Tuple[Group_stats, Group_stats]] = {}
-        self.current_year = None
+        self.current_year: int = None
         
     def switch_year(self, year: int):
         """sets `self.current_year` to `year`
@@ -56,8 +55,10 @@ class Log_stats:
         elif name == "people":
             self.people = Group_stats(data)
         elif name == "daily_data":
-            self.daily_data = {strp_date(d, DATE_FORMAT): Daily_stats(set(ips), r, s)
-                                    for d, (ips, r, s) in data.items()}
+            self.daily_data = {
+                strp_date(d, DATE_FORMAT): Daily_stats(strp_date(d, DATE_FORMAT), set(ips), r, s)
+                    for d, (ips, r, s) in data.items()
+            }
         elif name == "year_stats":
             self.year_stats = {int(year): (Group_stats(b), Group_stats(p))
                                     for year, (b, p) in data.items()}
@@ -80,6 +81,10 @@ class Log_stats:
         return getattr(self, name, None)
     
  
+def strp_date(date: str, format: str) -> datetime.date:
+    dt = datetime.datetime.strptime(date, format)
+    return dt.date()
+
 
     # DEBUG
     # def save(self, f_name: str):

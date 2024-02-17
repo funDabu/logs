@@ -1,16 +1,17 @@
 import datetime
 import socket
+import re
 
 from typing import  Optional, Tuple, Dict
 
 import logs.statistics.geolocation_api as geolocation_api
 from logs.parser.log_parser import Log_entry
-from logs.helpers.IJSONSerialize import IJSONSerialize
-from logs.helpers.constants import  DT_FORMAT
+from logs.statistics.helpers import IJSONSerialize
 from logs.statistics.geoloc_db import GeolocDB
-from logs.helpers.constants import LOG_DT_FORMAT
-from logs.statistics.constants import RE_PATTERN_SIMPLE_IPV4
+from logs.statistics.constants import SIMPLE_IPV4_REGEX
 
+DT_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
+RE_PATTERN_SIMPLE_IPV4 = re.compile(SIMPLE_IPV4_REGEX)
 
 class Ip_stats(IJSONSerialize):
     """Data structure to store informations about requests
@@ -27,6 +28,7 @@ class Ip_stats(IJSONSerialize):
     requests_num: int
     sessions_num: int
     datetime: datetime
+        default: 01/Jan/1980:00:00:00 +0000
     """
 
     __slots__ = ("ip_addr", "host_name", "geolocation", "bot_url",
@@ -51,7 +53,7 @@ class Ip_stats(IJSONSerialize):
         self.is_bot = is_bot
         self.bot_url = bot_url
         self.datetime = datetime.datetime.strptime("01/Jan/1980:00:00:00 +0000",
-                                                   LOG_DT_FORMAT)
+                                                   "%d/%b/%Y:%H:%M:%S %z")
         
     def update_host_name(self) -> None:
         """Resolves `self.ip_addr` to host name and sets `self.host_name`
