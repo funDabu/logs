@@ -1,17 +1,16 @@
-import os
-import matplotlib.pyplot as plt
 import io
+import os
 import random
 import re
+from typing import List, Optional, TextIO, Tuple
 
-from typing import List, TextIO, Optional, Tuple
+import matplotlib.pyplot as plt
 
-from logs.statistics.processing import Log_stats, Ip_stats
 from logs.htmlmaker.html_maker import Html_maker, make_table
-from logs.statistics.helpers import Ez_timer
+from logs.statistics.constants import DAYS, MONTHS, FI_MU_IPv4_REGEX
 from logs.statistics.geoloc_db import GeolocDB
-from logs.statistics.constants import MONTHS, DAYS
-from logs.statistics.constants import FI_MU_IPv4_REGEX
+from logs.statistics.helpers import Ez_timer
+from logs.statistics.processing import Ip_stats, Log_stats
 
 RE_PATTERN_FI_MU_IPv4 = re.compile(FI_MU_IPv4_REGEX)
 
@@ -379,8 +378,8 @@ def print_day_distribution(log_stats: Log_stats, html: Html_maker, bots, selecte
             f"{i}:00 - {i}:59",
             str(data.day_req_distrib[i]),
             str(data.day_sess_distrib[i]),
-        ] 
-        for i in range(24) # TODO:FIX!
+        ]
+        for i in range(24)
     )
     table_body.append(
         ["Sum", str(sum(data.day_req_distrib)), str(sum(data.day_sess_distrib))]

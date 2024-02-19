@@ -172,7 +172,10 @@ def _resolve_and_group_ips_in_group_stats(
     g_stats: Group_stats, ip_map: Optional[Dict[str, str]] = None
 ) -> None:
     """Resolves ip address in `g_stats`
-    and merges data for same ips together
+    and merges data for same ips together.
+
+    When Ip_stats are merged together, then
+    the most frequent (based on session count) is selcted the
 
     Parameters
     ----------
@@ -182,6 +185,8 @@ def _resolve_and_group_ips_in_group_stats(
         maps invalid adress to resolved address
     """
     grouped_stats: Dict[str, Ip_stats] = {}
+    hostname_aggregation_dict: Dict[str, Dict[str, int]] = {}
+    # maps valid ips to a dict that maps hostnames of give in to session_count
 
     for stat in g_stats.stats.values():
         stat.ensure_valid_ip_address(ip_map)
@@ -191,6 +196,17 @@ def _resolve_and_group_ips_in_group_stats(
         stat.requests_num += 0 if grouped is None else grouped.requests_num
         stat.sessions_num += 0 if grouped is None else grouped.sessions_num
         grouped_stats[ip] = stat
+
+        # aggregate hostname
+        if grouped is not None:
+            hostnames = hostname_aggregation_dict.get(ip, {grouped.host_name: grouped.sessions_num})
+            hostnames[stat.host_name] = stat.sessions_num + hostnames.get(stat.host_name, 0)
+
+    # set as a hostname the most common
+    for ip, hostnames in hostname_aggregation_dict.items():
+        if len(hostnames) > 1:
+            most_common_name, _ = sorted(hostnames.items(), key=lambda name_val_pair: name_val_pair[1])[-1]
+            grouped_stats[ip].host_name = most_common_name
 
     g_stats.stats = grouped_stats
 

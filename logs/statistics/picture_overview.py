@@ -218,8 +218,8 @@ def month_labels_to_year_labels(month_data: Graph_data) -> Graph_data:
 
 def mark_outliers(day_data: Graph_data, month_count: int):
     """Outliers are calssifies as follows:
-        - `month_count // 4` maximal values are
-        seen as potential outliers (circa 3 potential outlier per year)
+        - `5 * month_count // 12` maximal values are
+        seen as potential outliers (circa 5 potential outlier per year)
         - From potential outliers are marked as outlier those
         whose value is grater than 3 times median of values of `day_data`
     Parameters
@@ -236,7 +236,7 @@ def mark_outliers(day_data: Graph_data, month_count: int):
         just those marked as outliers has their `outlier` field set to `True`
     """
 
-    outliers_count = month_count // 4
+    outliers_count = 5 * month_count // 12
     sorted_values = sorted(map(lambda graph_val: graph_val.value, day_data))
 
     med = sorted_values[len(sorted_values) // 2]
