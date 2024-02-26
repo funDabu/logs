@@ -237,7 +237,7 @@ def mark_outliers(day_data: Graph_data, month_count: int):
     """
 
     outliers_count = 5 * month_count // 12
-    sorted_values = sorted(map(lambda graph_val: graph_val.value, day_data))
+    sorted_values = sorted(map(lambda graph_val: graph_val.value, day_data), reverse=True)
 
     med = sorted_values[len(sorted_values) // 2]
     maximal_nonoutlier_value = sorted_values[outliers_count]
@@ -289,7 +289,7 @@ def prettify_date_str(date: str) -> str:
 
 
 def prettify_day_labels(data: Graph_data) -> Graph_data:
-    """sets label for evry graph_value in `data` to an empty string"""
+    """sets label for every graph_value in `data` to an empty string"""
     return list(
         map(
             lambda graph_value: Graph_value(
