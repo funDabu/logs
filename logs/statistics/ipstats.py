@@ -232,7 +232,8 @@ def simple_ipv4_check(ip: str) -> bool:
         - `True` if `ip` is valid IPv4
         - `False` otherwise
     """
-    return RE_PATTERN_SIMPLE_IPV4.search(ip) is not None
+    return RE_PATTERN_SIMPLE_IPV4.fullmatch(ip) is not None
+    # return RE_PATTERN_SIMPLE_IPV4.search(ip) is not None
 
 
 def host_to_ip(host: str) -> Tuple[bool, str]:
