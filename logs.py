@@ -1,10 +1,17 @@
 import sys
 from optparse import OptionParser
-from typing import Optional 
+from typing import List, Optional
+from logs.statistics.dailystat import Simple_daily_stats, daily_stats_to_simple
 
 from logs.statistics.picture_overview import make_pictures
 from logs.statistics.print import make_histogram, print_stats, test_geolocation
 from logs.statistics.geoloc_db import GeolocDB
+from logs.statistics.cache import (
+    logstats_to_logcache,
+    log_stats_from_cache,
+    dailydata_to_logcache,
+    simple_dailydata_from_logcache,
+)
 from logs.statistics.processing import (
     Log_stats,
     load_log_stats,
@@ -105,7 +112,7 @@ def parse_options():
         help="makes picture overview",
     )
     parser.add_option(
-        "-c",
+        "-L",
         "--clean",
         action="store_true",
         dest="clean",
@@ -151,6 +158,16 @@ def parse_options():
         default=None,
         help="specify the path of input log file",
     )
+    parser.add_option(
+        "-c",
+        "--cache",
+        action="store",
+        type="str",
+        dest="cache",
+        default=None,
+        help="specify the path to the directory where the cache direcory is located. "
+        "If used together with -l, --load option, than the cache is only written to, but not read from.",
+    )
 
     options, _ = parser.parse_args()
     return options
@@ -158,25 +175,38 @@ def parse_options():
 
 def main():
     options = parse_options()
+    log_stats = None
+    cached_dailydata = []
 
     if options.load_file is not None:
         log_stats = load_log_stats(options.load_file, options.error)
+    elif options.cache is not None:
+        log_stats = log_stats_from_cache(log_stats, base_path=options.cache)
+        cached_dailydata = simple_dailydata_from_logcache(base_path=options.cache)
 
     if options.load_file is None or not options.ignore:
         if options.input is not None:
-            with open(options.input, 'r') as input_f:
+            with open(options.input, "r") as input_f:
                 log_stats = make_stats(
-                    input_f, config_f=options.config_f, err_msg=options.error
+                    input_f, config_f=options.config_f, err_msg=options.error, cached_log_stats=log_stats
                 )
         log_stats = make_stats(
-            sys.stdin, config_f=options.config_f, err_msg=options.error
+            sys.stdin, config_f=options.config_f, err_msg=options.error, cached_log_stats=log_stats
         )
+
+    resolve_and_group_ips(log_stats, ip_map={}, err_msg=options.error)
 
     if options.output_f is not None:
         save_log_stats(log_stats, options.output_f, err_msg=options.error)
 
-    geoloc_db = None if options.geoloc_db is None else GeolocDB(options
-                                                                .geoloc_db)
+    if options.cache is not None:
+        logstats_to_logcache(log_stats, base_path=options.cache)
+        dailydata_to_logcache(
+            log_stats.daily_data, cached_dailydata, base_path=options.cache
+        )
+
+    geoloc_db = None if options.geoloc_db is None else GeolocDB(options.geoloc_db)
+
     if options.year > 0:
         print_stats(
             log_stats,
@@ -189,7 +219,13 @@ def main():
         )
 
     elif not options.clean:
-        make_log_stats(log_stats, options, selected=False, geoloc_db=geoloc_db)
+        make_log_stats(
+            log_stats,
+            options=options,
+            selected=False,
+            cached_dailydata=cached_dailydata,
+            geoloc_db=geoloc_db,
+        )
 
     if options.test > 0:
         with open("_test.html", "w") as f:
@@ -203,16 +239,27 @@ def main():
             )
     if options.pic_overview:
         years = log_stats.year_stats.keys()
-        make_pictures(log_stats, separate_years=years)
+        make_pictures(
+            list(map(daily_stats_to_simple, log_stats.daily_data.values())),
+            cached_dailydata,
+            separate_years=years,
+        )
 
     if options.hist:
         make_histogram(log_stats, "_hist.html")
 
 
-
-def make_log_stats(log_stats: Log_stats, options, selected: bool, geoloc_db: Optional[GeolocDB] = None):
-    resolve_and_group_ips(log_stats, ip_map={}, err_msg=options.error)
-    make_pictures(log_stats)
+def make_log_stats(
+    log_stats: Log_stats,
+    options,
+    selected: bool,
+    cached_dailydata: List[Simple_daily_stats] = [],
+    geoloc_db: Optional[GeolocDB] = None,
+):
+    make_pictures(
+        list(map(daily_stats_to_simple, log_stats.daily_data.values())),
+        cached_dailydata,
+    )
 
     for year in sorted(log_stats.year_stats.keys()):
         with open(f"{year}.html", "w") as file:

@@ -1,5 +1,6 @@
 import sys
 import time
+import datetime
 from typing import Dict, Optional
 
 
@@ -82,3 +83,15 @@ class Ez_timer:
                 file=sys.stderr,
             )
         return time_diff
+
+
+def date_from_isoformat(date_str: str, isoformat: str = "%Y-%m-%d") -> datetime.date:
+    """Converts date string in isoformat to datetime.date object"""
+    return datetime.datetime.strptime(date_str, isoformat).date()
+
+
+def old_date() -> datetime.datetime:
+    """Return datetime.datetime object of 01/Jan/1980"""
+    return datetime.datetime.strptime(
+        "01/Jan/1980:00:00:00 +0000", "%d/%b/%Y:%H:%M:%S %z"
+    )

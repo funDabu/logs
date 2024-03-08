@@ -14,7 +14,7 @@ from logs.statistics.constants import (
 from logs.statistics.dailystat import Daily_stats
 from logs.statistics.groupstats import Group_stats
 from logs.statistics.helpers import Ez_timer
-from logs.statistics.ipsatats import Ip_stats
+from logs.statistics.ipstats import Ip_stats
 from logs.statistics.logstats import Log_stats
 
 RE_PATTERN_BOT_USER_AGENT = re.compile(BOT_USER_AGENT_REGEX)
@@ -22,7 +22,10 @@ RE_PATTERN_BOT_URL = re.compile(BOT_URL_REGEX)
 
 
 def make_stats(
-    input: TextIO, config_f: Optional[str], err_msg: bool = False
+    input: TextIO,
+    config_f: Optional[str],
+    err_msg: bool = False,
+    cached_log_stats: Optional[Log_stats] = None,
 ) -> Log_stats:
     """Parses and processes log in `input`
     and stores statistical information about the log in `log_stats`.
@@ -37,6 +40,11 @@ def make_stats(
     err_msg: bool, optional
         default: `False`; if `True` then the duration of making stats will be
         printed to std.err
+    cached_log_stats: Log_stats, optional
+        default: new empty `Log_stats` object;
+        log_stats object in which statiscics from `input` will be stored,
+        containg laoded stats from chache.
+        When parsing, not entries older then cached_log_stats.last_entry_ts will be added.
 
     Returns
     -------
@@ -45,17 +53,18 @@ def make_stats(
 
     Note
     ----
-    Log entries in input has to be ordered by their time.
+    Log entries in input should be ordered by their time.
     New session is recognized when time of given entry is
     at least SESSION_DELIM seconds after the time of the
     last entry for the same host.
 
     """
+    log_stats = Log_stats() if cached_log_stats is None  else cached_log_stats
+    from_time = log_stats.last_entry_ts
+
     if err_msg:
         timer = Ez_timer("Data parsing and proccessing")
-
-    log_stats = Log_stats()
-
+    
     bots_set = set()
     if config_f is not None:
         with open(config_f, "r") as f:
@@ -64,7 +73,7 @@ def make_stats(
     for buffer in regex_parser(input):
         for entry in buffer:
             if len(entry) == 9:  # correct format of the log entry
-                _log_stats_add_entry(log_stats, entry, bots_set)
+                _log_stats_add_entry(log_stats, entry, bots_set, from_time)
             elif err_msg:
                 print(
                     f"log entry parsing failed (len={len(entry)}):\n",
@@ -199,20 +208,29 @@ def _resolve_and_group_ips_in_group_stats(
 
         # aggregate hostname
         if grouped is not None:
-            hostnames = hostname_aggregation_dict.get(ip, {grouped.host_name: grouped.sessions_num})
-            hostnames[stat.host_name] = stat.sessions_num + hostnames.get(stat.host_name, 0)
+            hostnames = hostname_aggregation_dict.get(
+                ip, {grouped.host_name: grouped.sessions_num}
+            )
+            hostnames[stat.host_name] = stat.sessions_num + hostnames.get(
+                stat.host_name, 0
+            )
 
     # set as a hostname the most common
     for ip, hostnames in hostname_aggregation_dict.items():
         if len(hostnames) > 1:
-            most_common_name, _ = sorted(hostnames.items(), key=lambda name_val_pair: name_val_pair[1])[-1]
+            most_common_name, _ = sorted(
+                hostnames.items(), key=lambda name_val_pair: name_val_pair[1]
+            )[-1]
             grouped_stats[ip].host_name = most_common_name
 
     g_stats.stats = grouped_stats
 
 
 def _log_stats_add_entry(
-    log_stats: Log_stats, entry: Log_entry, bots_set: Optional[Set[str]]
+    log_stats: Log_stats,
+    entry: Log_entry,
+    bots_set: Optional[Set[str]],
+    from_time: datetime.datetime,
 ):
     """Adds one `entry` to the statistical informations stored in `log_stats`
 
@@ -223,14 +241,23 @@ def _log_stats_add_entry(
     bots_set: Optional[Set[str]]
         set of IPv4 from blacklist - all entries from these
         ips will be classified as bots
+    from_time: datetime.datetime
+        only entries with time attribute later than `from_time` will be added
     """
     dt = datetime.datetime.strptime(entry.time, LOG_DT_FORMAT)
+    if dt <= from_time:
+        # skip entry earlier than `from_time`
+        return
+
+    if dt > log_stats.last_entry_ts:
+        log_stats.last_entry_ts = dt
+
     if log_stats.current_year != dt.year:
         log_stats.switch_year(dt.year)
 
     is_bot, bot_url = determine_bot(entry, bots_set)
     group_stats = log_stats.bots if is_bot else log_stats.people
-    ip_stat = group_stats.stats.get(entry.ip_addr, Ip_stats(entry, is_bot, bot_url))
+    ip_stat = group_stats.stats.get(entry.ip_addr, Ip_stats(entry.ip_addr, is_bot, bot_url))
 
     new_sess = _ip_stats_add_entry(ip_stat, entry)
     # 1 if new session was created, 0 otherwise
@@ -238,12 +265,10 @@ def _log_stats_add_entry(
     group_stats.stats[entry.ip_addr] = ip_stat
     group_stats.day_req_distrib[ip_stat.datetime.hour] += 1
     group_stats.week_req_distrib[ip_stat.datetime.weekday()] += 1
-    group_stats.month_req_distrib[(ip_stat.datetime.year, ip_stat.datetime.month)] += 1
+    group_stats.month_req_distrib[ip_stat.datetime.month - 1] += 1
     group_stats.day_sess_distrib[ip_stat.datetime.hour] += new_sess
     group_stats.week_sess_distrib[ip_stat.datetime.weekday()] += new_sess
-    group_stats.month_sess_distrib[
-        (ip_stat.datetime.year, ip_stat.datetime.month)
-    ] += new_sess
+    group_stats.month_sess_distrib[ip_stat.datetime.month - 1] += new_sess
 
     # making daily_data for picture overview
     date = ip_stat.datetime.date()

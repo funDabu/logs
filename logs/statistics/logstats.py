@@ -4,6 +4,7 @@ from typing import Dict, Tuple
 from logs.statistics.constants import DATE_FORMAT
 from logs.statistics.dailystat import Daily_stats
 from logs.statistics.groupstats import Group_stats
+from logs.statistics.helpers import old_date
 
 
 class Log_stats:
@@ -21,6 +22,8 @@ class Log_stats:
         this information is used for making picture overview
     year_stats: Dict[int, Tuple(Group_stats, Group_stats)]
         maps years to tuples (<Group_stats for bots>, <Group_stats for people>)
+    last_entry_ts: datetime.datetime
+        timestamp of the latest log entry
     """
 
     def __init__(self):
@@ -29,6 +32,7 @@ class Log_stats:
         self.daily_data: Dict[datetime.date, Daily_stats] = {}
         self.year_stats: Dict[int, Tuple[Group_stats, Group_stats]] = {}
         self.current_year: int = None
+        self.last_entry_ts: datetime.datetime = old_date()
 
     def switch_year(self, year: int):
         """sets `self.current_year` to `year`
@@ -86,6 +90,11 @@ class Log_stats:
             return {y: (b.json(), p.json()) for y, (b, p) in self.year_stats.items()}
 
         return getattr(self, name, None)
+
+
+#################
+### FUNCTIONS ###
+#################
 
 
 def strp_date(date: str, format: str) -> datetime.date:

@@ -475,32 +475,35 @@ def print_month_distributions(
     )
 
     data = log_stats.bots if bots else log_stats.people
-    session_distrib = sorted(data.month_sess_distrib.items(), key=lambda x: x[0])
+    year = log_stats.current_year
 
-    distrib_values = list(map(lambda x: x[1], session_distrib))
-    distrib_keys = list(map(lambda x: x[0], session_distrib))
+    # skip empty months at the beginning and the end of the year
+    begin_month = 0 
+    while data.month_req_distrib[begin_month] == 0 and begin_month < 11:
+        begin_month += 1
+    
+    end_month = 11
+    while data.month_req_distrib[end_month] == 0 and end_month > 0:
+        end_month -= 1
+
     print_distribution_graph(
         html,
-        distrib_values,
+        data.month_sess_distrib[begin_month:end_month+1],
         "months",
         "session count",
-        [f"{MONTHS[k[1]]} {k[0]}" for k in distrib_keys],
+        [f"{MONTHS[i]} {year}" for i in range(begin_month, end_month+1)],
         group_name,
         left_margin=True,
     )
 
     html.append(f'</div>\n<div class="selectable {selected} {uniq_classes[1]}">')
 
-    request_distrib = sorted(data.month_req_distrib.items(), key=lambda x: x[0])
-    distrib_values = list(map(lambda x: x[1], request_distrib))
-    distrib_keys = list(map(lambda x: x[0], request_distrib))
-
     print_distribution_graph(
         html,
-        distrib_values,
+        data.month_req_distrib[begin_month:end_month+1],
         "months",
         "request count",
-        [f"{MONTHS[k[1]]} {k[0]}" for k in distrib_keys],
+        [f"{MONTHS[i]} {year}" for i in range(begin_month, end_month+1)],
         group_name,
         left_margin=True,
     )
@@ -558,7 +561,9 @@ def get_geolocations_from_sample(
         decreasingly sorted list of tuples
         `(<geolocation>, <proportion of the location in the sample weighted by sessions counts>)`
     """
-
+    if len(sample) == 0:
+        return [()]
+    
     geoloc_weights = {}
     weights_sum = 0
 

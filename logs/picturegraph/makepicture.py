@@ -134,6 +134,9 @@ def _render_data(
 
 
 def _data_max(data: Graph_data) -> int:
+    if len(data) == 0:
+        return 0
+    
     return max(
         map(
             lambda graph_value: graph_value.value,

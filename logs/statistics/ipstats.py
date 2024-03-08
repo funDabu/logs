@@ -4,12 +4,16 @@ import socket
 from typing import Dict, Optional, Tuple
 
 import logs.statistics.geolocation_api as geolocation_api
-from logs.parser.log_parser import Log_entry
 from logs.statistics.constants import SIMPLE_IPV4_REGEX
 from logs.statistics.geoloc_db import GeolocDB
-from logs.statistics.helpers import IJSONSerialize
+from logs.statistics.helpers import IJSONSerialize, old_date
 
+UNRESLOVED = "Unresolved"
 DT_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
+FORMAT_STR = (
+    "ip_addr host_name geolocation bot_url is_bot requests_num sessions_num datetime"
+)
+LOG_DELIM = '\t'
 RE_PATTERN_SIMPLE_IPV4 = re.compile(SIMPLE_IPV4_REGEX)
 
 
@@ -44,25 +48,23 @@ class Ip_stats(IJSONSerialize):
 
     def __init__(
         self,
-        entry: Log_entry,
+        ip_addr: str,
         is_bot: Optional[bool] = None,
-        bot_url="Unresolved",
+        bot_url=UNRESLOVED,
         json: Optional[str] = None,
     ) -> None:
         if json is not None:
             self.from_json(json)
             return
 
-        self.ip_addr = entry.ip_addr
-        self.host_name = "Unresolved"
-        self.geolocation = "Unresolved"
+        self.ip_addr = ip_addr
+        self.host_name = UNRESLOVED
+        self.geolocation = UNRESLOVED
         self.requests_num = 0
         self.sessions_num = 0
         self.is_bot = is_bot
         self.bot_url = bot_url
-        self.datetime = datetime.datetime.strptime(
-            "01/Jan/1980:00:00:00 +0000", "%d/%b/%Y:%H:%M:%S %z"
-        )
+        self.datetime = old_date()
 
     def update_host_name(self) -> None:
         """Resolves `self.ip_addr` to host name and sets `self.host_name`
@@ -167,6 +169,53 @@ class Ip_stats(IJSONSerialize):
             self.datetime = datetime.datetime.strptime(data, DT_FORMAT)
         else:
             setattr(self, name, data)
+
+    def log_format(
+        self, format_str: Optional[str] = None, delim: Optional[str] = "\t"
+    ) -> str:
+        """Returns representaion of the object as a log entry
+
+        Parameters
+        ----------
+        format_str: str, optional
+            default: ipstats.FORMAT_STR;
+            string of attributes name separated by whitespace
+
+        delim: str, optional
+            default: '\t'; attributes delimiter in the log entry
+
+        """
+        format_str = FORMAT_STR if format_str is None else format_str
+        delim = LOG_DELIM if delim is None else delim
+
+        return delim.join(str(self._get_attr(attr)) for attr in format_str.split())
+    
+    def from_log(self, log_entry: str, format_str: Optional[str] = None, delim: Optional[str] = None) -> "Ip_stats":
+        """Sets attributes of the object according to  `log_entry`
+
+        Parameters
+        ----------
+        format_str: str, optional
+            default: ipstats.FORMAT_STR;
+            string of attributes name separated by whitespace
+
+        delim: str, optional
+            default: ipstats.LOG_DELIM; attributes delimiter in the log entry
+        """
+
+        format_str = FORMAT_STR if format_str is None else format_str
+        delim = LOG_DELIM if delim is None else delim
+
+        for name, value in zip(format_str.split(), log_entry.split(delim)):
+            if name == "requests_num" or name == "sessions_num":
+                value = int(value)
+            if name == "is_bot":
+                value = value == "True"
+
+            self._set_attr(name, value)
+        
+        return self
+
 
 
 """

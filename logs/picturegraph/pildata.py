@@ -3,7 +3,7 @@ from PIL import Image, ImageDraw
 
 
 class PIL_data:
-    """Data structure to strore rendered grapt value"""
+    """Data structure to strore rendered graph value"""
 
     __slots__ = ("rectangle", "arrow", "x_label", "y_label", "outlier")
 
