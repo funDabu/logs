@@ -48,6 +48,7 @@ def logstats_to_logcache(
             f.write(humans.log_format_distributions())
 
     with open(os.path.join(cache_path, last_ts_file), "w") as f:
+        f.write(log_stats.last_entry_ts.timestamp() + '\n')
         f.write(log_stats.last_entry_ts.__format__(LOG_DT_FORMAT))
 
 
@@ -110,9 +111,7 @@ def log_stats_from_cache(
     for file in os.listdir(cache_path):
         if file == last_ts_file:
             with open(os.path.join(cache_path, last_ts_file), "r") as f:
-                log_stats.last_entry_ts = datetime.datetime.strptime(
-                    f.read(), LOG_DT_FORMAT
-                )
+                log_stats.last_entry_ts = datetime.datetime.fromtimestamp(f.readlines()[0])
 
         elif bot_stats_file in file:
             year = int(file.split("-")[0])

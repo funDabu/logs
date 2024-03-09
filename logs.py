@@ -96,10 +96,11 @@ def main():
 
     # Generate index html
     if options.index:
-        generate_index_html(options=options, years=years)
+        index_years = year if options.just_years else log_stats.year_stats.keys()
+        generate_index_html(options=options, years=index_years)
             
     logger.finishTask("creating output html files")
-    
+
     # Generate overview pictures
     if options.pic_overview:
         logger.addTask("creating overview pictures")
@@ -109,6 +110,7 @@ def main():
             cached_dailydata,
             years=years,
             name=options.name,
+            purge_years=options.just_years
         )
         logger.finishTask("creating overview pictures")
 
@@ -160,6 +162,7 @@ def generate_index_html(options, years: List[int]):
 
         file.write("<h2>Statistics per year</h2>\n")
         file.write("<ul>\n")
+
         for year in years:
             file.write(f"<li><a href='{year}.html'> year {year} </a></li>\n")
         file.write("</ul>\n")
@@ -169,53 +172,20 @@ def generate_index_html(options, years: List[int]):
 
 def parse_options():
     parser = OptionParser()
+    
     parser.add_option(
-        "-g",
-        "--geolocation",
-        action="store",
-        type="int",
-        dest="geoloc_sample",
-        default=1000,
-        help="sample size for geolocation",
-    )
-    parser.add_option(
-        "-e",
-        "--error",
-        action="store_true",
-        dest="error",
-        default=False,
-        help="log execution details to stderr",
-    )
-    parser.add_option(
-        # TODO: meabe remove
-        "-t",
-        "--test",
-        action="store",
-        type="int",
-        dest="test",
-        default=0,
-        help="Test geolocation, specify number of repetitions. ",
-    )
-    parser.add_option(
-        "-y",
-        "--year",
-        action="append",
-        type="int",
-        dest="years",
-        default=None,
-        help="Specify years fow which the output will be generated. "
-        "If not given, than all output for each present year will be generated. "
-        "Use value '-' if you do not want to generate output for any year.",
-    )
-    parser.add_option(
-        "-s",
-        "--save",
+        "-i",
+        "--input",
         action="store",
         type="str",
-        dest="json_out",
+        dest="input",
         default=None,
-        help="Specify a name of a json file, "
-        "which proccessed log statisics will be exported to",
+        help="Specify the path to input log file which will be procces; "
+        "if not specified, standar input will be taken as input."
+        "When equal to '-' no input is will be parsed, "
+        "only data from cache of json might be used."
+        "When used together with -l, --load or -c, --cache options, "
+        "only entries older than loaded timestamp will be proccessed.",
     )
     parser.add_option(
         "-n",
@@ -228,14 +198,77 @@ def parse_options():
         "Name will be diplayed output files",
     )
     parser.add_option(
-        "-l",
-        "--load",
+        "-e",
+        "--error",
+        action="store_true",
+        dest="error",
+        default=False,
+        help="log execution details to stderr",
+    )
+    parser.add_option(
+        "-g",
+        "--geolocation",
+        action="store",
+        type="int",
+        dest="geoloc_sample",
+        default=1000,
+        help="sample size for geolocation",
+    )
+    parser.add_option(
+        "-c",
+        "--cache",
         action="store",
         type="str",
-        dest="json_in",
+        dest="cache",
         default=None,
-        help="Specify a json file, which proccessed statiscics will be loaded from. "
-        "When used together with -c, --cache flag, no cache will be loaded",
+        help="specify the path to the directory where the cache direcory is located. "
+        "Data from chache will be loaded, then merged together with proccessed data, "
+        "and then saved to the chache."
+        "If used together with -l, --load option, no cache will be loaded, but will be saved.",
+    )
+    parser.add_option(
+        "-b",
+        "--bot_config",
+        action="store",
+        type="str",
+        dest="bot_config",
+        default=None,
+        help="Specify the path of the bot configuration file. "
+        "That is plain text file, containing just an IPv4 on each line."
+        "Ip addresses from the config file will be clasified as bots.",
+    )
+    parser.add_option(
+        "-d",
+        "--geoloc_database",
+        action="store",
+        type="str",
+        dest="geoloc_db",
+        default=None,
+        help="Specify the path of geolocation database. "
+        "This is SQLite database used for saving resolved geolocations",
+    )
+    parser.add_option(
+        "-y",
+        "--year",
+        action="append",
+        type="int",
+        dest="years",
+        default=None,
+        help="Restrict generated output to given years. "
+        "If not given, than all output for each present year will be generated. "
+        "Use value '-' if you do not want to generate output for any year."
+        "The restriction woun't apply to the general index html and the general overview pictures "
+        "without the usage of -Y, --just_years option.",
+    )
+    parser.add_option(
+        "-Y",
+        "--just_years",
+        action="store_true",
+        dest="just_years",
+        default=False,
+        help="Restrict to given years also the content of "
+        "the general index html and general overview pictures. "
+        "To specify the years use -y, --year option.",
     )
     parser.add_option(
         "-H",
@@ -263,52 +296,39 @@ def parse_options():
         help="Do not generate html index file",
     )
     parser.add_option(
-        "-b",
-        "--bot_config",
+        "-s",
+        "--save",
         action="store",
         type="str",
-        dest="bot_config",
+        dest="json_out",
         default=None,
-        help="Specify the path of the bot configuration file. "
-        "That is plain text file, containing just an IPv4 on each line."
-        "Ip addresses from the config file will be clasified as bots.",
+        help="Specify a name of a json file, "
+        "which proccessed log statisics will be exported to",
     )
     parser.add_option(
-        "-d",
-        "--geoloc_database",
+        "-l",
+        "--load",
         action="store",
         type="str",
-        dest="geoloc_db",
+        dest="json_in",
         default=None,
-        help="Specify the path of geolocation database. "
-        "This is SQLite database used for saving resolved geolocations",
+        help="Specify a json file, which proccessed statiscics will be loaded from. "
+        "When used together with -c, --cache flag, no cache will be loaded",
     )
     parser.add_option(
-        "-i",
-        "--input",
+        # TODO: meabe remove
+        "-t",
+        "--test",
         action="store",
-        type="str",
-        dest="input",
-        default=None,
-        help="Specify the path to input log file which will be procces; "
-        "if not specified, standar input will be taken as input."
-        "When equal to '-' no input is will be parsed, "
-        "only data from cache of json might be used."
-        "When used together with -l, --load or -c, --cache options, "
-        "only entries older than loaded timestamp will be proccessed.",
+        type="int",
+        dest="test",
+        default=0,
+        help="Test geolocation, specify number of repetitions. ",
     )
-    parser.add_option(
-        "-c",
-        "--cache",
-        action="store",
-        type="str",
-        dest="cache",
-        default=None,
-        help="specify the path to the directory where the cache direcory is located. "
-        "Data from chache will be loaded, then merged together with proccessed data, "
-        "and then saved to the chache."
-        "If used together with -l, --load option, no cache will be loaded, but will be saved.",
-    )
+    
+    
+    
+    
 
     options, _ = parser.parse_args()
     return options
