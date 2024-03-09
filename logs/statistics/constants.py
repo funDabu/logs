@@ -3,6 +3,9 @@
 Edit
 """
 
+import datetime
+
+
 LOG_DT_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
 
 
@@ -46,6 +49,12 @@ MONTHS = [
     "Dec",
 ]
 DAYS = ["Mon", "Tue", "Wed", "Thr", "Fri", "Sat", "Sun"]
+
+def old_date() -> datetime.datetime:
+    """Return datetime.datetime object of 01/Jan/1980"""
+    return datetime.datetime.strptime(
+        "01/Jan/1980:00:00:00 +0000", "%d/%b/%Y:%H:%M:%S %z"
+    )
 
 """
 ========== Other ==========

@@ -4,7 +4,7 @@ from typing import Callable, Dict, List
 from logs.picturegraph.makepicture import make_picture
 from logs.picturegraph.picturedata import Graph_data, Graph_value
 from logs.statistics.constants import MONTHS
-from logs.statistics.dailystat import Simple_daily_stats, simple_daily_stat_getattr
+from logs.statistics.dailystat import Simple_daily_stats
 from logs.statistics.cache import merge_simple_dailydata
 
 
@@ -122,7 +122,7 @@ def daily_data_to_day_graph_data(
         map(
             lambda daily_stats: Graph_value(
                 base_step,
-                simple_daily_stat_getattr(daily_stats, metric),
+                daily_stats.__getattribute__(metric),
                 daily_stats.date.isoformat(),
             ),
             sorted_daily_data,
@@ -182,7 +182,7 @@ def daily_data_to_month_graph_data(
 
     current_date = sorted_daily_data[0].date
     month_width = base_step
-    month_value = simple_daily_stat_getattr(sorted_daily_data[0], metric)
+    month_value = sorted_daily_data[0].__getattribute__(metric)
 
     for dd in sorted_daily_data[1:]:
         if dd.date.month != current_date.month:
@@ -192,7 +192,7 @@ def daily_data_to_month_graph_data(
             month_width, month_value = 0, 0
 
         month_width += base_step
-        month_value += simple_daily_stat_getattr(dd, metric)
+        month_value += dd.__getattribute__(metric)
         current_date = dd.date
     
     result_data.append(

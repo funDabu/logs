@@ -1,7 +1,7 @@
 import sys
 from optparse import OptionParser
 from typing import List, Optional
-from logs.statistics.dailystat import Simple_daily_stats, daily_stats_to_simple
+from logs.statistics.dailystat import Simple_daily_stats
 
 from logs.statistics.picture_overview import make_pictures
 from logs.statistics.print import make_histogram, print_stats, test_geolocation
@@ -240,7 +240,7 @@ def main():
     if options.pic_overview:
         years = log_stats.year_stats.keys()
         make_pictures(
-            list(map(daily_stats_to_simple, log_stats.daily_data.values())),
+            list(map(Simple_daily_stats.from_daily_stats, log_stats.daily_data.values())),
             cached_dailydata,
             separate_years=years,
         )
@@ -257,7 +257,7 @@ def make_log_stats(
     geoloc_db: Optional[GeolocDB] = None,
 ):
     make_pictures(
-        list(map(daily_stats_to_simple, log_stats.daily_data.values())),
+        list(map(Simple_daily_stats.from_daily_stats, log_stats.daily_data.values())),
         cached_dailydata,
     )
 

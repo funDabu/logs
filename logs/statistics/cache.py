@@ -6,9 +6,6 @@ from logs.statistics.constants import LOG_DT_FORMAT
 from logs.statistics.dailystat import (
     Daily_stats,
     Simple_daily_stats,
-    daily_stats_to_simple,
-    log_format_simple_daily_stats,
-    simple_daily_stats_from_log,
 )
 from logs.statistics.logstats import Log_stats
 
@@ -68,12 +65,12 @@ def dailydata_to_logcache(
     os.makedirs(cache_path, exist_ok=True)
 
     sorted_daily_data = sorted(
-        map(daily_stats_to_simple, daily_data.values()), key=lambda ds: ds.date
+        map(Simple_daily_stats.from_daily_stats, daily_data.values()), key=lambda ds: ds.date
     )
     merged = merge_simple_dailydata(older=cached_daily_data, newer=sorted_daily_data)
 
     with open(os.path.join(cache_path, daily_data_file), "w") as f:
-        f.writelines(log_format_simple_daily_stats(ds) + "\n" for ds in merged)
+        f.writelines(ds.log_format() + "\n" for ds in merged)
 
 
 def log_stats_from_cache(
@@ -166,7 +163,7 @@ def simple_dailydata_from_logcache(
         return
 
     with open(os.path.join(cache_path, daily_data_file), "r") as f:
-        simple_daily_data = list(map(simple_daily_stats_from_log, f.readlines()))
+        simple_daily_data = list(map(Simple_daily_stats.from_logcache, f.readlines()))
 
     return simple_daily_data
 

@@ -1,10 +1,9 @@
 import datetime
 from typing import Dict, Tuple
 
-from logs.statistics.constants import DATE_FORMAT
+from logs.statistics.constants import DATE_FORMAT, old_date
 from logs.statistics.dailystat import Daily_stats
 from logs.statistics.groupstats import Group_stats
-from logs.statistics.helpers import old_date
 
 
 class Log_stats:

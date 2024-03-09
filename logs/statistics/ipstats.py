@@ -4,10 +4,9 @@ import socket
 from typing import Dict, Optional, Tuple
 
 import logs.statistics.geolocation_api as geolocation_api
-from logs.statistics.constants import SIMPLE_IPV4_REGEX
+from logs.statistics.constants import SIMPLE_IPV4_REGEX, old_date
 from logs.statistics.geoloc_db import GeolocDB
-from logs.statistics.helpers import IJSONSerialize, old_date
-
+from logs.statistics.helpers import IJSONSerialize
 UNRESLOVED = "Unresolved"
 DT_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 FORMAT_STR = (
