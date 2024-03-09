@@ -6,7 +6,7 @@ from typing import List, Optional, TextIO, Tuple
 
 import matplotlib.pyplot as plt
 
-from logs.htmlmaker.html_maker import Html_maker, make_table
+from logs.htmlmaker.htmlmaker import Html_maker, make_table
 from logs.statistics.constants import DAYS, MONTHS, FI_MU_IPv4_REGEX
 from logs.statistics.geoloc_db import GeolocDB
 from logs.statistics.helpers import Ez_timer
@@ -1073,7 +1073,7 @@ def print_splitted_vals_table(
     """
     data_sums = list(map(sum, splited_data))
     tot_sum = sum(data_sums)
-    tot_len = sum(map(len, data_sums))
+    tot_len = sum(map(len, splited_data))
 
     table_body = []
     prev_delim = 0

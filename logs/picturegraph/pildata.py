@@ -1,3 +1,4 @@
+from typing import List, Tuple
 from logs.picturegraph.helpers import draw_label
 from PIL import Image, ImageDraw
 
@@ -8,8 +9,7 @@ class PIL_data:
     __slots__ = ("rectangle", "arrow", "x_label", "y_label", "outlier")
 
     def __init__(self, outlier=False) -> None:
-        self.rectangle = []
-        self.arrow = []
+        self.rectangle: List[Tuple[int, int]] = ()
         self.x_label = ""
         self.y_label = ""
         self.outlier = outlier
