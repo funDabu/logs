@@ -1,7 +1,7 @@
 import re
 from typing import Callable, Iterator, TextIO
 
-from logs.parser.logentry import Log_entry
+from logs.parser.logentry import LogEntry
 
 # LOG_ENTRY_REGEX = r'([0-9.]+?) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+?) "(.*?)(?<!\\)" "(.*?)(?<!\\)"'
 # matches only numbers and dots in the first - 'Host' group - eg. excepts only IPv4 as a host
@@ -9,11 +9,11 @@ LOG_ENTRY_REGEX = r'(\S+) (.+?) (.+?) \[(.+?)\] "(.*?[^\\])" ([0-9]+?) ([0-9\-]+
 # matches all nonwhitespace characters in the first - 'Host' group - e.g allows for both IP address and hostname as a host
 
 
-def get_log_entry_parser(re_prog) -> Callable[[str], Log_entry]:
+def get_log_entry_parser(re_prog) -> Callable[[str], LogEntry]:
     """`re_prog` is compiled re.Pattern object of log entry regex"""
 
-    def log_entry_parser(line: str) -> Log_entry:
-        result = Log_entry()
+    def log_entry_parser(line: str) -> LogEntry:
+        result = LogEntry()
         match = re_prog.search(line)
 
         if match is None:
@@ -28,7 +28,7 @@ def get_log_entry_parser(re_prog) -> Callable[[str], Log_entry]:
     return log_entry_parser
 
 
-def regex_parser(input: TextIO, buffer_size: int = 1000) -> Iterator[Log_entry]:
+def regex_parser(input: TextIO, buffer_size: int = 1000) -> Iterator[LogEntry]:
     """Reads `buffer_size` lines from `input`,
     parses them with regex and yields an iterator of
     `buffer_size` of Log_entries

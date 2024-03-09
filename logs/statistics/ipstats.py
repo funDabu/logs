@@ -3,10 +3,10 @@ import re
 import socket
 from typing import Dict, Optional, Tuple
 
-import logs.statistics.geolocation_api as geolocation_api
+import logs.statistics.geolocapi as geolocapi
 from logs.statistics.constants import SIMPLE_IPV4_REGEX, old_date
-from logs.statistics.geoloc_db import GeolocDB
-from logs.statistics.helpers import IJSONSerialize
+from logs.statistics.geolocdb import GeolocDB
+from logs.helpers.ijsonserialize import IJsonSerialize
 UNRESLOVED = "Unresolved"
 DT_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 FORMAT_STR = (
@@ -16,7 +16,7 @@ LOG_DELIM = '\t'
 RE_PATTERN_SIMPLE_IPV4 = re.compile(SIMPLE_IPV4_REGEX)
 
 
-class Ip_stats(IJSONSerialize):
+class IpStats(IJsonSerialize):
     """Data structure to store informations about requests
     from a single IP address.
     Implements IJSONSerialize
@@ -167,7 +167,7 @@ class Ip_stats(IJSONSerialize):
             self.geolocation = "Unknown"
             return
 
-        self.geolocation = geolocation_api.geolocate(self.ip_addr)
+        self.geolocation = geolocapi.geolocate(self.ip_addr)
 
     def _get_attr(self, name: str):
         if name == "datetime":
@@ -200,7 +200,7 @@ class Ip_stats(IJSONSerialize):
 
         return delim.join(str(self._get_attr(attr)) for attr in format_str.split())
     
-    def from_log(self, log_entry: str, format_str: Optional[str] = None, delim: Optional[str] = None) -> "Ip_stats":
+    def from_log(self, log_entry: str, format_str: Optional[str] = None, delim: Optional[str] = None) -> "IpStats":
         """Sets attributes of the object according to  `log_entry`
 
         Parameters

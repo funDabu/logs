@@ -1,7 +1,7 @@
 from typing import NamedTuple, List
 
 
-class Graph_value(NamedTuple):
+class GraphValue(NamedTuple):
     """Data structure to strore data for a single value
     in overview picture graph.
     Attribures
@@ -21,5 +21,5 @@ class Graph_value(NamedTuple):
     outlier: bool = False
 
 
-Graph_data = List[Graph_value]
-"""Contains `Graph_values` in their x-axis order"""
+Graph_data = List[GraphValue]
+"""Contains `GraphValues` in their x-axis order"""

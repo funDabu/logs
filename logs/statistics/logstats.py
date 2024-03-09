@@ -2,34 +2,34 @@ import datetime
 from typing import Dict, Tuple
 
 from logs.statistics.constants import DATE_FORMAT, old_date
-from logs.statistics.dailystat import Daily_stats
-from logs.statistics.groupstats import Group_stats
+from logs.statistics.dailystat import DailyStats
+from logs.statistics.groupstats import GroupStats
 
 
-class Log_stats:
+class LogStats:
     """Class for processing logs and storing statistical informations.
     Attributes
     ----------
-    bots: Group_stats
+    bots: GroupStats
         stores informations about bots for current year
-    poeple: Group_stats
+    poeple: GroupStats
         stores informations about humna users for current year
     current_year: int, optional
-    daily_data: Dict[datetime.date, Daily_stats]
+    daily_data: Dict[datetime.date, DailyStats]
         maps dates to a named tuples (<unique ips>, <number of requests>, <number of human sessions>)
         the tuple contains information related to the given date
         this information is used for making picture overview
-    year_stats: Dict[int, Tuple(Group_stats, Group_stats)]
-        maps years to tuples (<Group_stats for bots>, <Group_stats for people>)
+    year_stats: Dict[int, Tuple(GroupStats, GroupStats)]
+        maps years to tuples (<GroupStats for bots>, <GroupStats for people>)
     last_entry_ts: datetime.datetime
         timestamp of the latest log entry
     """
 
     def __init__(self):
-        self.bots: Group_stats = Group_stats()
-        self.people: Group_stats = Group_stats()
-        self.daily_data: Dict[datetime.date, Daily_stats] = {}
-        self.year_stats: Dict[int, Tuple[Group_stats, Group_stats]] = {}
+        self.bots: GroupStats = GroupStats()
+        self.people: GroupStats = GroupStats()
+        self.daily_data: Dict[datetime.date, DailyStats] = {}
+        self.year_stats: Dict[int, Tuple[GroupStats, GroupStats]] = {}
         self.current_year: int = None
         self.last_entry_ts: datetime.datetime = old_date()
 
@@ -37,7 +37,7 @@ class Log_stats:
         """sets `self.current_year` to `year`
         and sets `self.bots`, `self.people` to `year` also"""
         if year not in self.year_stats:
-            self.year_stats[year] = (Group_stats(), Group_stats())
+            self.year_stats[year] = (GroupStats(), GroupStats())
 
         self.bots, self.people = self.year_stats.get(year)
         self.current_year = year
@@ -51,19 +51,19 @@ class Log_stats:
 
     def _set_attr(self, name, data):
         if name == "bots":
-            self.bots = Group_stats(data)
+            self.bots = GroupStats(data)
         elif name == "people":
-            self.people = Group_stats(data)
+            self.people = GroupStats(data)
         elif name == "daily_data":
             self.daily_data = {
-                strp_date(d, DATE_FORMAT): Daily_stats(
+                strp_date(d, DATE_FORMAT): DailyStats(
                     strp_date(d, DATE_FORMAT), set(ips), r, s
                 )
                 for d, (ips, r, s) in data.items()
             }
         elif name == "year_stats":
             self.year_stats = {
-                int(year): (Group_stats(b), Group_stats(p))
+                int(year): (GroupStats(b), GroupStats(p))
                 for year, (b, p) in data.items()
             }
         else:

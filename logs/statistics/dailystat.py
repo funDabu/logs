@@ -9,7 +9,7 @@ LOG_DELIM = "\t"
 ###################
 ##### CLASSES #####
 ###################
-class Daily_stats(NamedTuple):
+class DailyStats(NamedTuple):
     """Data structure to strore information for single day
     Attribures
     ----------
@@ -26,7 +26,7 @@ class Daily_stats(NamedTuple):
     sessions: int
 
 
-class Simple_daily_stats:
+class SimpleDailyStats:
     """Data structure to strore information for single day,
     Attribures
     ----------
@@ -77,13 +77,13 @@ class Simple_daily_stats:
         log_entry: str,
         log_format: Optional[str] = None,
         delim: Optional[str] = None,
-    ) -> "Simple_daily_stats":
+    ) -> "SimpleDailyStats":
         log_format = LOG_FORMAT if log_format is None else log_format
         delim = LOG_DELIM if delim is None else delim
 
         attr_val = dict(zip(log_format.split(), log_entry.split(delim)))
 
-        return Simple_daily_stats(
+        return SimpleDailyStats(
             date=date_from_isoformat(attr_val["date"]),
             ips=int(attr_val["ips"]),
             requests=int(attr_val["requests"]),
@@ -91,8 +91,8 @@ class Simple_daily_stats:
         )
 
     @classmethod
-    def from_daily_stats(cls, daily_stat: Daily_stats) -> "Simple_daily_stats":
-        return Simple_daily_stats(
+    def from_daily_stats(cls, daily_stat: DailyStats) -> "SimpleDailyStats":
+        return SimpleDailyStats(
             date=daily_stat.date,
             ips=len(daily_stat.ips),
             requests=daily_stat.requests,
@@ -100,7 +100,7 @@ class Simple_daily_stats:
         )
 
 
-# class Simple_daily_stats(NamedTuple):
+# class SimpleDailyStats(NamedTuple):
 #     """Data structure to strore information for single day,
 #     Attribures
 #     ----------
@@ -127,8 +127,8 @@ def date_from_isoformat(date_str: str, isoformat: str = "%Y-%m-%d") -> datetime.
     return datetime.datetime.strptime(date_str, isoformat).date()
 
 
-# def log_format_simple_daily_stats(
-#     daily_stat: Simple_daily_stats,
+# def log_format_SimpleDailyStats(
+#     daily_stat: SimpleDailyStats,
 #     log_format: Optional[str] = None,
 #     delim: Optional[str] = None,
 # ) -> str:
@@ -138,15 +138,15 @@ def date_from_isoformat(date_str: str, isoformat: str = "%Y-%m-%d") -> datetime.
 
 #     return delim.join(_attr_to_str(daily_stat, attr) for attr in log_format.split())
 
-# def simple_daily_stat_getattr(daily_stat: Simple_daily_stats, attribute_name: str):
+# def simple_daily_stat_getattr(daily_stat: SimpleDailyStats, attribute_name: str):
 #     """Returns given attribute from `daily_stat`.
 #     Raises AttributeError
 
 #     Parameters
 #     ----------
-#     daily_stat: Simple_daily_stats
+#     daily_stat: SimpleDailyStats
 #     attribute_name: str
-#         has to mach exactly one of the attributes of Simple_daily_stats,
+#         has to mach exactly one of the attributes of SimpleDailyStats,
 #         otherwise reises AttributeError
 #     """
 #     if attribute_name == "date":
@@ -159,10 +159,10 @@ def date_from_isoformat(date_str: str, isoformat: str = "%Y-%m-%d") -> datetime.
 #         return daily_stat.sessions
 
 #     raise AttributeError(
-#         "Attribute", attribute_name, "does not exist for an object of type Daily_stats"
+#         "Attribute", attribute_name, "does not exist for an object of type DailyStats"
 #     )
 
-# def _attr_to_str(daily_stat: Simple_daily_stats, attribute_name: str) -> str:
+# def _attr_to_str(daily_stat: SimpleDailyStats, attribute_name: str) -> str:
 #     if attribute_name == "date":
 #         return daily_stat.date.isoformat()
 

@@ -1,4 +1,4 @@
-class Log_entry:
+class LogEntry:
     """Data structure to store single access log entry"""
 
     __slots__ = (

@@ -4,16 +4,16 @@ from typing import Dict, List, Optional
 
 from logs.statistics.constants import LOG_DT_FORMAT
 from logs.statistics.dailystat import (
-    Daily_stats,
-    Simple_daily_stats,
+    DailyStats,
+    SimpleDailyStats,
 )
-from logs.statistics.logstats import Log_stats
+from logs.statistics.logstats import LogStats
 
 LOG_CACHE = "logcache"
 
 
 def logstats_to_logcache(
-    log_stats: Log_stats,
+    log_stats: LogStats,
     base_path: str = ".",
     bot_stats_file: str = "bot_stats_file",
     human_stats_file: str = "human_stats_file",
@@ -52,8 +52,8 @@ def logstats_to_logcache(
 
 
 def dailydata_to_logcache(
-    daily_data: Dict[datetime.date, Daily_stats],
-    cached_daily_data: List[Simple_daily_stats] = [],
+    daily_data: Dict[datetime.date, DailyStats],
+    cached_daily_data: List[SimpleDailyStats] = [],
     base_path: str = ".",
     daily_data_file: str = "daily_data_file",
 ):
@@ -65,7 +65,7 @@ def dailydata_to_logcache(
     os.makedirs(cache_path, exist_ok=True)
 
     sorted_daily_data = sorted(
-        map(Simple_daily_stats.from_daily_stats, daily_data.values()), key=lambda ds: ds.date
+        map(SimpleDailyStats.from_daily_stats, daily_data.values()), key=lambda ds: ds.date
     )
     merged = merge_simple_dailydata(older=cached_daily_data, newer=sorted_daily_data)
 
@@ -74,19 +74,19 @@ def dailydata_to_logcache(
 
 
 def log_stats_from_cache(
-    log_stats: Log_stats,
+    log_stats: LogStats,
     base_path: str = ".",
     bot_stats_file: str = "bot_stats_file",
     human_stats_file: str = "human_stats_file",
     bot_distrib_file: str = "bot_distrib_file",
     human_distrib_file: str = "human_distrib_file",
     last_ts_file: str = "last_ts_file",
-) -> Optional[Log_stats]:
+) -> Optional[LogStats]:
     """Loads into `logs_stats` data from log cache
 
     Returns
     -------
-    Log_stats
+    LogStats
         with loaded data from chache
     None
         if cache directory does not exist
@@ -105,7 +105,7 @@ def log_stats_from_cache(
     if not os.path.isdir(cache_path):
         return
 
-    log_stats = Log_stats()
+    log_stats = LogStats()
 
     for file in os.listdir(cache_path):
         if file == last_ts_file:
@@ -148,11 +148,11 @@ def log_stats_from_cache(
 def simple_dailydata_from_logcache(
     base_path: str = ".",
     daily_data_file: str = "daily_data_file",
-) -> Optional[List[Simple_daily_stats]]:
+) -> Optional[List[SimpleDailyStats]]:
     """Returns
     -------
-    List[Simple_daily_stats]
-        list of loaded simple_daily_stats from thr chache
+    List[SimpleDailyStats]
+        list of loaded SimpleDailyStats from thr chache
     None
         if cache directory does not exist
     """
@@ -163,27 +163,27 @@ def simple_dailydata_from_logcache(
         return
 
     with open(os.path.join(cache_path, daily_data_file), "r") as f:
-        simple_daily_data = list(map(Simple_daily_stats.from_logcache, f.readlines()))
+        simple_daily_data = list(map(SimpleDailyStats.from_logcache, f.readlines()))
 
     return simple_daily_data
 
-def merge_simple_dailydata(older: List[Simple_daily_stats], newer:List[Simple_daily_stats]) -> List[Simple_daily_stats]:
-    """Merge two lists if Simple_daily_stats in one. Raises ValueError
+def merge_simple_dailydata(older: List[SimpleDailyStats], newer:List[SimpleDailyStats]) -> List[SimpleDailyStats]:
+    """Merge two lists if SimpleDailyStats in one. Raises ValueError
 
     Used for merging cached daily_data with newly parsed daily_data from log_stats.
     
     Parameters
     ----------
-    older: List[Simple_daily_stats]
-        list of Simple_daily_stats sorted by date
-    newer: List[Simple_daily_stats]
-        list of Simple_daily_stats sorted by date,
+    older: List[SimpleDailyStats]
+        list of SimpleDailyStats sorted by date
+    newer: List[SimpleDailyStats]
+        list of SimpleDailyStats sorted by date,
         last simple_daily_stat from `older` cannot have more recent date
         than the first simple_daily_stat from `newer`.
     
     Returns
     -------
-    List[Simple_daily_stats]
+    List[SimpleDailyStats]
         Concatenation of `older` and `newer`,
         if the date of last simple_daily_stat from `older` 
         is equal to the date of the first simple_daily_stat from `newer`,
@@ -198,12 +198,12 @@ def merge_simple_dailydata(older: List[Simple_daily_stats], newer:List[Simple_da
     
     if older[-1].date > newer[0].date:
         raise ValueError(
-            "Error in dailydata_to_logcache: last daily_stats in older "
+            "Error in dailydata_to_logcache: last DailyStats in older "
             "cannot be older than firt daily_stat in daily_data"
         )
 
     if older[-1].date == newer[0].date:
-        summed_stat = Simple_daily_stats(
+        summed_stat = SimpleDailyStats(
             older[-1].date,
             older[-1].ips + newer[0].ips,
             older[-1].requests + newer[0].requests,

@@ -1,21 +1,21 @@
 
 from typing import Optional, Dict
-from logs.statistics.ipstats import Ip_stats
-from logs.statistics.helpers import IJSONSerialize
+from logs.statistics.ipstats import IpStats
+from logs.helpers.ijsonserialize import IJsonSerialize
 
 DISTRIB_ORDER = "day_req_distrib day_sess_distrib week_req_distrib week_sess_distrib month_req_distrib month_sess_distrib"
 LOG_DELIM = "\t"
 
 
-class Group_stats(IJSONSerialize):
+class GroupStats(IJsonSerialize):
     """Data structure to store statistical informations about one category
     of entries (either bots or people).
     Implements IJSONSerialize
 
     Attributes
     ----------
-    stats: Dict[str, Iip_stats]
-        maps IPv4 as string to Iip_stats object
+    stats: Dict[str, IpStats]
+        maps IPv4 as string to IpStats object
         which stores information regarding the IPv4
     day_req_distrib: List[int]
         list of length 24,
@@ -58,7 +58,7 @@ class Group_stats(IJSONSerialize):
             self.from_json(js)
             return
 
-        self.stats: Dict[str, Ip_stats] = {}
+        self.stats: Dict[str, IpStats] = {}
         self.day_req_distrib = [0] * 24
         self.day_sess_distrib = [0] * 24
         self.week_req_distrib = [0] * 7
@@ -68,7 +68,7 @@ class Group_stats(IJSONSerialize):
 
     def _set_attr(self, name, data):
         if name == "stats":
-            self.stats = {key: Ip_stats(None, json=stat) for key, stat in data.items()}
+            self.stats = {key: IpStats(None, json=stat) for key, stat in data.items()}
         else:
             setattr(self, name, data)
 
@@ -81,7 +81,7 @@ class Group_stats(IJSONSerialize):
     def log_format_stats(
         self, format_str: Optional[str] = None, delim: Optional[str] = None
     ) -> str:
-        """Returns representaion of the Ip_stats in self.stats as a log entries
+        """Returns representaion of the IpStats in self.stats as a log entries
 
         Parameters
         ----------
@@ -118,7 +118,7 @@ class Group_stats(IJSONSerialize):
 
         """
         for line in log.split("\n"):
-            ip_stat = Ip_stats("").from_log(line, format_str=format_str, delim=delim)
+            ip_stat = IpStats("").from_log(line, format_str=format_str, delim=delim)
             self.stats[ip_stat.ip_addr] = ip_stat
 
 

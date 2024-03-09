@@ -6,31 +6,32 @@ from typing import List, Optional, TextIO, Tuple
 
 import matplotlib.pyplot as plt
 
-from logs.htmlmaker.htmlmaker import Html_maker, make_table
+from logs.htmlmaker.htmlmaker import HtmlMaker, make_table
 from logs.statistics.constants import DAYS, MONTHS, FI_MU_IPv4_REGEX
-from logs.statistics.geoloc_db import GeolocDB
-from logs.statistics.helpers import Ez_timer
-from logs.statistics.processing import Ip_stats, Log_stats
+from logs.statistics.geolocdb import GeolocDB
+from logs.helpers.simplelogger import SimpleLogger
+from logs.statistics.processing import IpStats, LogStats
 
 RE_PATTERN_FI_MU_IPv4 = re.compile(FI_MU_IPv4_REGEX)
 
 
 def print_stats(
-    log_stats: Log_stats,
+    log_stats: LogStats,
     output: TextIO,
     geoloc_sample_size: int,
     selected: bool = True,
     year: int = None,
+    log_name: Optional[str] = None,
     geoloc_db: Optional[str] = None,
     display_overview_imgs: bool = False,
-    err_msg: bool = False,
+    logger: Optional[SimpleLogger] = None,
 ) -> None:
     """Transforms data for given year from `log_stats`
     into html files and writes it into `output`
 
     Parameters
     ----------
-    log_stats : Log_stats
+    log_stats : LogStats
         input data for this function,
         contains data from parsed log
         which will be transformed into html file
@@ -53,19 +54,24 @@ def print_stats(
         default: `False`;
         if 'True', then overview pictures for given `year` will be created
         and linked in the beginnig of the output html
-    err_msg: bool, optional
-        default: `False`; if `True` then the duration of this function
-        will be printed to std.err
+    logger: SimpleLogger, optional
+        default: `None`; if not None then the duration of this function
+        added to logger as task
     """
-    html: Html_maker = Html_maker()
+    html: HtmlMaker = HtmlMaker()
 
     if year is not None:
         log_stats.switch_year(year)
 
-    html.append(f"<h1>Year {log_stats.current_year}</h1>")
+    title = (
+        f"{log_name.capitalize()} - year {log_stats.current_year}"
+        if log_name is not None
+        else f"Year {log_stats.current_year}"
+    )
+    html.append(f"<h1>{title}</h1>")
 
-    if err_msg:
-        timer = Ez_timer("making charts of bots and human users")
+    if logger is not None:
+        logger.addTask("making charts of bots and human users")
 
     if display_overview_imgs:
         display_overview_images(log_stats, html)
@@ -73,15 +79,17 @@ def print_stats(
     print_bots(log_stats, html, selected, geoloc_db)
     print_users(log_stats, html, selected, geoloc_db)
 
-    if err_msg:
-        timer.finish()
+    if logger is not None:
+        logger.finishTask("making charts of bots and human users")
 
-    print_countries_stats(log_stats, html, geoloc_sample_size, selected, geoloc_db)
+    print_countries_stats(
+        log_stats, html, geoloc_sample_size, selected, geoloc_db, logger=logger
+    )
 
     print(html.html(), file=output)
 
 
-def display_overview_images(log_stats: Log_stats, html: Html_maker):
+def display_overview_images(log_stats: LogStats, html: HtmlMaker):
     """Appends links for picture overviews for `log_stats.current_year`
     to `html`
     """
@@ -97,7 +105,7 @@ def display_overview_images(log_stats: Log_stats, html: Html_maker):
 
 
 def test_geolocation(
-    log_stats: Log_stats,
+    log_stats: LogStats,
     output: TextIO,
     geoloc_sample_size=300,
     selected=True,
@@ -108,7 +116,7 @@ def test_geolocation(
     if year is not None:
         log_stats.switch_year(year)
 
-    html: Html_maker = Html_maker()
+    html: HtmlMaker = HtmlMaker()
     _test_geolocation(
         log_stats,
         html,
@@ -122,7 +130,7 @@ def test_geolocation(
 
 
 def print_bots(
-    log_stats, html: Html_maker, selected=True, geoloc_db: Optional[GeolocDB] = None
+    log_stats, html: HtmlMaker, selected=True, geoloc_db: Optional[GeolocDB] = None
 ) -> None:
     """Transforms data about bot from `logs_stats` to html
     and appends it to `html`
@@ -152,8 +160,8 @@ def print_bots(
 
 
 def print_users(
-    log_stats: Log_stats,
-    html: Html_maker,
+    log_stats: LogStats,
+    html: HtmlMaker,
     selected=True,
     geoloc_db: Optional[GeolocDB] = None,
 ):
@@ -183,12 +191,12 @@ def print_users(
 
 
 def print_overview(
-    html: Html_maker, header_str: str, req_sorted_stats: List[Ip_stats]
+    html: HtmlMaker, header_str: str, req_sorted_stats: List[IpStats]
 ) -> None:
     """Creates overivew html table from`req_sorted_stats` and appends it to `html`
 
     The overview will contain onw row and following columns:
-        - `header_str`: number of Ip_stats
+        - `header_str`: number of IpStats
         - Total session count: sum of all the session counts in `req_sorted_stats`
         - FI MU sessions: sum of all the session counts in `req_sorted_stats` for
           IP addresses from FI MU
@@ -217,16 +225,14 @@ def print_overview(
     )
 
 
-def sort_stats(
-    log_stats: Log_stats, bot: bool
-) -> Tuple[List[Ip_stats], List[Ip_stats]]:
-    """Sorts Ip_stats from `log_stats` in decending order
+def sort_stats(log_stats: LogStats, bot: bool) -> Tuple[List[IpStats], List[IpStats]]:
+    """Sorts IpStats from `log_stats` in decending order
     based on request count and session count
     and returns the sorted lists in
 
     Parameters
     ----------
-    log_stats: Log_stats
+    log_stats: LogStats
         input data
     bot: bool
         if `True` selects `log_stats.bots.stats` to be sorted and returned
@@ -234,7 +240,7 @@ def sort_stats(
 
     Retrurns
     --------
-    Tuple[List[Ip_stats], List[Ip_stats]]
+    Tuple[List[IpStats], List[IpStats]]
         (<sorted based on requests count>, <sorted based on sessions count>)
     """
     if bot:
@@ -252,9 +258,9 @@ def sort_stats(
 
 
 def print_most_frequent(
-    html: Html_maker,
-    req_sorted_stats: List[Ip_stats],
-    sess_sorted_stats: List[Ip_stats],
+    html: HtmlMaker,
+    req_sorted_stats: List[IpStats],
+    sess_sorted_stats: List[IpStats],
     bots: bool,
     selected="",
     host_name=True,
@@ -326,13 +332,13 @@ def print_most_frequent(
 
 
 def get_most_frequent_table_data(
-    sorted_data: List[Ip_stats],
+    sorted_data: List[IpStats],
     n: int,
     bots: bool,
     host_name=True,
     geoloc_db: Optional[GeolocDB] = None,
 ) -> List[List]:
-    """From decendingly sorted list of Ip_stats
+    """From decendingly sorted list of IpStats
     return list of `n` rows in most frequent table"""
     n = min(n, len(sorted_data))
     rows = []
@@ -357,14 +363,14 @@ def get_most_frequent_table_data(
     return rows
 
 
-def attribs_for_most_freq_table(data: List[Ip_stats], n: int) -> List[List[str]]:
+def attribs_for_most_freq_table(data: List[IpStats], n: int) -> List[List[str]]:
     """Returs attributes for `td` elements for most frequent table table"""
     n = min(n, len(data))
 
     return list(["", "", f"title='{data[i].host_name}'", "", "", ""] for i in range(n))
 
 
-def print_day_distribution(log_stats: Log_stats, html: Html_maker, bots, selected=""):
+def print_day_distribution(log_stats: LogStats, html: HtmlMaker, bots, selected=""):
     group_name = "bots" if bots else "users"
 
     html.append("<h3>Distribution of across hours of day</h3>")
@@ -419,9 +425,7 @@ def print_day_distribution(log_stats: Log_stats, html: Html_maker, bots, selecte
     html.append("</div></div>")
 
 
-def print_week_distribution(
-    log_stats: Log_stats, html: Html_maker, bots, selected=True
-):
+def print_week_distribution(log_stats: LogStats, html: HtmlMaker, bots, selected=True):
     group_name = "bots" if bots else "users"
 
     html.append("<h3>Distributions across week days</h3>")
@@ -461,7 +465,7 @@ def print_week_distribution(
 
 
 def print_month_distributions(
-    log_stats: Log_stats, html: Html_maker, bots: bool, selected: str = ""
+    log_stats: LogStats, html: HtmlMaker, bots: bool, selected: str = ""
 ):
     group_name = "bots" if bots else "users"
 
@@ -478,20 +482,20 @@ def print_month_distributions(
     year = log_stats.current_year
 
     # skip empty months at the beginning and the end of the year
-    begin_month = 0 
+    begin_month = 0
     while data.month_req_distrib[begin_month] == 0 and begin_month < 11:
         begin_month += 1
-    
+
     end_month = 11
     while data.month_req_distrib[end_month] == 0 and end_month > 0:
         end_month -= 1
 
     print_distribution_graph(
         html,
-        data.month_sess_distrib[begin_month:end_month+1],
+        data.month_sess_distrib[begin_month : end_month + 1],
         "months",
         "session count",
-        [f"{MONTHS[i]} {year}" for i in range(begin_month, end_month+1)],
+        [f"{MONTHS[i]} {year}" for i in range(begin_month, end_month + 1)],
         group_name,
         left_margin=True,
     )
@@ -500,10 +504,10 @@ def print_month_distributions(
 
     print_distribution_graph(
         html,
-        data.month_req_distrib[begin_month:end_month+1],
+        data.month_req_distrib[begin_month : end_month + 1],
         "months",
         "request count",
-        [f"{MONTHS[i]} {year}" for i in range(begin_month, end_month+1)],
+        [f"{MONTHS[i]} {year}" for i in range(begin_month, end_month + 1)],
         group_name,
         left_margin=True,
     )
@@ -511,7 +515,7 @@ def print_month_distributions(
 
 
 def print_distribution_graph(
-    html: Html_maker,
+    html: HtmlMaker,
     data: List[float],
     xlabel: str,
     ylabel: str,
@@ -524,7 +528,7 @@ def print_distribution_graph(
 
     Parameters
     ----------
-    html: Html_maker
+    html: HtmlMaker
     data: List[float]
         list of frequescies sorted in decending order
     xlabel: str
@@ -552,7 +556,7 @@ def print_distribution_graph(
 
 
 def get_geolocations_from_sample(
-    sample: List[Ip_stats], geoloc_db: Optional[GeolocDB] = None
+    sample: List[IpStats], geoloc_db: Optional[GeolocDB] = None
 ) -> List[Tuple[str, float]]:
     """
     Returns
@@ -563,7 +567,7 @@ def get_geolocations_from_sample(
     """
     if len(sample) == 0:
         return [()]
-    
+
     geoloc_weights = {}
     weights_sum = 0
 
@@ -585,20 +589,20 @@ def get_geolocations_from_sample(
 
 def _test_geolocation(
     log_stats,
-    html: Html_maker,
+    html: HtmlMaker,
     geoloc_sample_size: int,
+    logger: SimpleLogger,
     repetitions: int = 5,
     selected: bool = False,
-    err_msg: bool = False,
     geoloc_db: Optional[GeolocDB] = None,
 ):
     # now olnly for human users
-    def filter_f(stat: Ip_stats) -> bool:
+    def filter_f(stat: IpStats) -> bool:
         return stat.sessions_num <= 50
 
-    data: List[Ip_stats] = list(filter(filter_f, log_stats.people.stats.values()))
+    data: List[IpStats] = list(filter(filter_f, log_stats.people.stats.values()))
 
-    samples: List[List[Ip_stats]] = []
+    samples: List[List[IpStats]] = []
     sample_size = min(len(data), geoloc_sample_size)
 
     for _ in range(repetitions):
@@ -608,15 +612,15 @@ def _test_geolocation(
             samples.append(data)
 
     # geolocation
-    timer = Ez_timer("geolocations", verbose=err_msg)
+    logger.addTask("geolocations")
 
     geoloc_stats = []
     for i, sample in enumerate(samples):
-        timer2 = Ez_timer(f"geolocaion {i+1}", verbose=False)
+        logger.addTask(f"geolocaion {i+1}")
         geoloc_stats.append(get_geolocations_from_sample(sample, geoloc_db))
-        timer2.finish(err_msg)
+        logger.finishTask(f"geolocaion {i+1}")
 
-    timer.finish(err_msg)
+    logger.finishTask("geolocations")
 
     # Printing
     selected = "selected" if selected else ""
@@ -639,12 +643,12 @@ def _test_geolocation(
 
 
 def print_countries_stats(
-    log_stats: Log_stats,
-    html: Html_maker,
+    log_stats: LogStats,
+    html: HtmlMaker,
     sample_size: int,
     selected: bool = False,
     geoloc_db: Optional[GeolocDB] = None,
-    err_msg: bool = False,
+    logger: Optional[SimpleLogger] = None,
 ):
     """Estimates the geolocations of human users from `log_stats`
     on a random sample of length `sample_size`.
@@ -663,7 +667,7 @@ def print_countries_stats(
     if sample_size <= 0:
         return
 
-    sample: List[Ip_stats] = list(
+    sample: List[IpStats] = list(
         filter(
             lambda ip_stat: ip_stat.sessions_num <= 50, log_stats.people.stats.values()
         )
@@ -676,13 +680,13 @@ def print_countries_stats(
         sample_size = len(sample)
 
     # estimate geolocations
-    if err_msg:
-        timer = Ez_timer("geolocation")
+    if logger is not None:
+        logger.addTask("geolocation")
 
     estimated_locations = get_geolocations_from_sample(sample, geoloc_db)
 
-    if err_msg:
-        timer.finish()
+    if logger is not None:
+        logger.finishTask("geolocation")
 
     # making html
     selected = "selected" if selected else ""
@@ -729,7 +733,7 @@ def print_countries_stats(
 
 
 def print_geolocations_graph(
-    html: Html_maker,
+    html: HtmlMaker,
     sorted_data: List[Tuple[str, float]],
     title: str,
     left_margin: bool = False,
@@ -739,7 +743,7 @@ def print_geolocations_graph(
 
     Parameters
     ----------
-    html: Html_maker
+    html: HtmlMaker
     sorted_data: List[Tuple[str, float]]
         decreasingly sorted list of tuples
         `(<geolocation>, <proportion of the location>)`
@@ -779,7 +783,7 @@ def print_geolocations_graph(
 
 
 def _print_h_bar_graph(
-    html: Html_maker,
+    html: HtmlMaker,
     xs,
     ys,
     xlabel,
@@ -792,7 +796,7 @@ def _print_h_bar_graph(
 
     Parameters
     ----------
-    html: Html_maker
+    html: HtmlMaker
     xs: array-like
         widths of the bars
     ys: array-like
@@ -841,17 +845,20 @@ def _print_h_bar_graph(
     plt.rcParams["figure.figsize"] = plt.rcParamsDefault["figure.figsize"]
 
 
-def make_histogram(log_stats: Log_stats, file_name: str, selected: str = ""):
-    # For people only!!
+def make_histogram(log_stats: LogStats, file_name: str, selected: str = "", log_name: Optional[str] = None):
+    """Creates html containg information about session, requests and pis frequencies.
+    Currently for entries classified as people only.
+    Working, but still in development"""
 
     with open(
         f"{os.path.dirname(__file__)}/hist.js", "r"
     ) as f:  # TODO: think of better way to get hist.js
         js = f.read()
     template = "<html><head><style>{css}</style> <script>{js}</script></head>\n<body>\n{content}\n</body>\n</html>"
-    html: Html_maker = Html_maker(template, js=js)
+    html: HtmlMaker = HtmlMaker(template, js=js)
 
-    html.append("<h1>Histograms</h1>")
+    title = f"{log_name.capitalize()} - Histograms" if log_name is not None else "Histograms"
+    html.append(f"<h1>{title}</h1>")
 
     for year in sorted(log_stats.year_stats.keys()):
         log_stats.switch_year(year)
@@ -869,7 +876,7 @@ def make_histogram(log_stats: Log_stats, file_name: str, selected: str = ""):
 
 
 def print_histograms_for_stats(
-    stats: List[Ip_stats], html: Html_maker, title: str, selected: str = ""
+    stats: List[IpStats], html: HtmlMaker, title: str, selected: str = ""
 ):
     session_data = []
     request_data = []
@@ -904,6 +911,7 @@ def print_histograms_for_stats(
         delims=[2, 5, 10, 50, 100, 1000],
         data_name="sessions",
         selected=selected,
+        uniq_class=uniq_classes[2],
     )
     html.append("</div>")
 
@@ -931,6 +939,7 @@ def print_histograms_for_stats(
         delims=[2, 5, 10, 50, 100, 1000, 10000],
         data_name="requests",
         selected=selected,
+        uniq_class=uniq_classes[2],
     )
     html.append("</div>")
 
@@ -946,7 +955,7 @@ def print_histograms_for_stats(
 
 
 def _print_histogram_graphs(
-    html: Html_maker,
+    html: HtmlMaker,
     data: List[int],
     bins: int,
     cutoff_for_detail: int,
@@ -964,7 +973,7 @@ def _print_histogram_graphs(
 
     Parameters
     ----------
-    html: Html_maker
+    html: HtmlMaker
     data: List[int]
     bins: int
         number of bins which the data will be devided in
@@ -1035,10 +1044,10 @@ def get_splited_data(data: List[int], delims: List[int]) -> List[List[int]]:
 
 def print_splitted_vals_table(
     splited_data: List[List[int]],
-    html: Html_maker,
+    html: HtmlMaker,
     delims: List[int],
     data_name: str = "ip addresses",
-    uniqe_class: str = "",
+    uniq_class: str = "",
     selected: str = "",
 ) -> None:
     """Prints table to `html` created from `splitted data`.
@@ -1055,7 +1064,7 @@ def print_splitted_vals_table(
     splited_data: List[List[int]]
         List of bins of data (List[int]),
         such list can be obtain by function get_splited_data
-    html: Html_maker
+    html: HtmlMaker
     delims: List[int]
         delimeters separeting bins in `splited_data`
     data_name: str, optional
@@ -1103,7 +1112,7 @@ def print_splitted_vals_table(
     )
     table_body.append(["Total", tot_sum, 100, tot_len, 100])
 
-    html.append(f"<div class='{uniqe_class} selectable {selected}'>")
+    html.append(f"<div class='{uniq_class} selectable {selected}'>")
     html.append(
         make_table(
             f"{data_name.capitalize()} splitted into bins",

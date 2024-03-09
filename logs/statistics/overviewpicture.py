@@ -1,10 +1,10 @@
 import datetime
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
 from logs.picturegraph.makepicture import make_picture
-from logs.picturegraph.picturedata import Graph_data, Graph_value
+from logs.picturegraph.picturedata import Graph_data, GraphValue
 from logs.statistics.constants import MONTHS
-from logs.statistics.dailystat import Simple_daily_stats
+from logs.statistics.dailystat import SimpleDailyStats
 from logs.statistics.cache import merge_simple_dailydata
 
 
@@ -12,19 +12,26 @@ BASE_STEP = 2  # px
 
 
 def make_pictures(
-    simple_daily_data: List[Simple_daily_stats],
-    cached_daily_data: List[Simple_daily_stats] = [],
-    separate_years: List[int] = [],
+    simple_daily_data: List[SimpleDailyStats],
+    cached_daily_data: List[SimpleDailyStats] = [],
+    years: List[int] = [],
+    name: Optional[str] = None,
+    purge_years: bool = True,
 ):
     """Makes overview pictures.
 
     Parameters
     ----------
-    simple_daily_data: List[Simple_daily_stats]
+    simple_daily_data: List[SimpleDailyStats]
         source data for the overview pictures.
-    cached_daily_data: List[Simple_daily_stats], optional
+    cached_daily_data: List[SimpleDailyStats], optional
         default: `[]`; cache data,
         which merged with the `simple_daily_data`.
+    years: List[int], optional
+        default: empty list; years specified to make overview pictures from
+    purge_years: bool, optional
+        default: `True`; if True only years from `years`
+        will be included in the ovetview pictures from all years
     """
     metrics = ("requests", "ips", "sessions")
     data: Dict[str, Graph_data]
@@ -36,6 +43,7 @@ def make_pictures(
     data = {}
 
     for metric in metrics:
+        # create graph data
         data[f"day_{metric}"] = daily_data_to_day_graph_data(
             sorted_daily_data, metric=metric, base_step=BASE_STEP
         )
@@ -46,26 +54,13 @@ def make_pictures(
             data[f"day_{metric}"], len(data[f"month_{metric}"])
         )
 
-    for metric in metrics:
-        month_data = month_labels_to_year_labels(data[f"month_{metric}"])
-        day_data = remove_labels(data[f"day_{metric}"])
+        title = f"{name} - {metric}" if name is not None else metric
+        purged_data = {}
 
-        # print(month_data) # DEBUG
-        # print(day_data) # DEBUG
+        # create distinct picture each year
+        for year in years:
+            year = str(year)
 
-        make_picture(
-            data=day_data,
-            right_data=month_data,
-            y_axis_name="per day",
-            right_y_axis_name="per month",
-            output_name=f"{metric}_overview.png",
-            title=metric,
-        )
-
-    for year in separate_years:
-        year = str(year)
-
-        for metric in metrics:
             day_data = list(
                 filter(
                     lambda graph_value: year in graph_value.label, data[f"day_{metric}"]
@@ -76,27 +71,52 @@ def make_pictures(
                     lambda graph_value: year in graph_value.label,
                     data[f"month_{metric}"],
                 )
-            )
-
+            )          
             make_picture(
                 data=remove_labels(day_data),
                 right_data=prettify_month_labels(month_data),
                 y_axis_name="per day",
                 right_y_axis_name="per month",
                 output_name=f"{metric}_{year}_overview.png",
-                title=f"{year} {metric}",
+                title=title,
             )
+
+            p_data = purged_data.get(f"day_{metric}", [])
+            p_data += day_data
+            purged_data[f"day_{metric}"] = p_data
+
+            p_data = purged_data.get(f"month_{metric}", [])
+            p_data += month_data
+            purged_data[f"month_{metric}"] = p_data
+        
+        # create picture for all years
+        if purge_years:
+            data = purged_data
+        
+        month_data = month_labels_to_year_labels(data[f"month_{metric}"])
+        day_data = remove_labels(data[f"day_{metric}"])
+
+        make_picture(
+            data=day_data,
+            right_data=month_data,
+            y_axis_name="per day",
+            right_y_axis_name="per month",
+            output_name=f"{metric}_overview.png",
+            title=metric,
+        )
+
+
 
 
 def daily_data_to_day_graph_data(
-    sorted_daily_data: List[Simple_daily_stats], metric: str, base_step: int
+    sorted_daily_data: List[SimpleDailyStats], metric: str, base_step: int
 ) -> Graph_data:
     """Transforms `sorted_daily_data` to `Graph_data`. Raises ValueError
 
     Parameters
     ----------
-    sorted_daily_data: List[Simple_daily_stats]
-        Simple_daily_stats in the same order as they should appear in graph
+    sorted_daily_data: List[SimpleDailyStats]
+        SimpleDailyStats in the same order as they should appear in graph
     metric: str
         takes values: "requests" | "sessions" | "ips";
         - if "requests", then values in the returned Graph_data
@@ -107,20 +127,20 @@ def daily_data_to_day_graph_data(
         corresponds to number uniques IP adresses in given day
         - raises ValueError if other value is given
     base_step: int
-        x_step value for Graph_values in returned Graph_value
+        x_step value for GraphValues in returned GraphValue
 
     Returns
     -------
     Graph_data
         Contains its values in the same order as `sorted_daily_data`.
-        Each value `v` is Graph_value with:
+        Each value `v` is GraphValue with:
         `v.x_step` set to `base_step`,
         `v.value` set based on `metrcic`,
         `v.label` set to daily_data.date.isoformat()
     """
     return list(
         map(
-            lambda daily_stats: Graph_value(
+            lambda daily_stats: GraphValue(
                 base_step,
                 daily_stats.__getattribute__(metric),
                 daily_stats.date.isoformat(),
@@ -135,7 +155,7 @@ def date_format(date: datetime.date) -> str:
 
 
 def daily_data_to_month_graph_data(
-    sorted_daily_data: List[Simple_daily_stats],
+    sorted_daily_data: List[SimpleDailyStats],
     metric: str,
     base_step: int,
     label_format: Callable[
@@ -149,8 +169,8 @@ def daily_data_to_month_graph_data(
 
     Parameters
     ----------
-    sorted_daily_data: List[Simple_daily_stats]
-        Simple_daily_stats in the same order as they should appear in graph
+    sorted_daily_data: List[SimpleDailyStats]
+        SimpleDailyStats in the same order as they should appear in graph
     metric: str
         takes values: "requests" | "sessions" | "ips";
         - if "requests", then values in the returned Graph_data
@@ -161,7 +181,7 @@ def daily_data_to_month_graph_data(
         corresponds to number uniques IP adresses in given day
         - raises ValueError if other value is given
     base_step: int
-        x_step value for Graph_values in returned Graph_value
+        x_step value for GraphValues in returned GraphValue
     label_format: Callable[[datetime.date], str], optional
         function mapping datetime.date onject to date string,
         defualt format is "<Month> <Year>"
@@ -169,7 +189,7 @@ def daily_data_to_month_graph_data(
     Returns
     -------
     Graph_data
-        Each value `v` is Graph_value with:
+        Each value `v` is GraphValue with:
         - `v.x_step` set to `base_step` * nummber of days in the month,
         `v.value` set to the sum of values in the days of the month,
         - based on `metrcic`,
@@ -187,7 +207,7 @@ def daily_data_to_month_graph_data(
     for dd in sorted_daily_data[1:]:
         if dd.date.month != current_date.month:
             result_data.append(
-                Graph_value(month_width, month_value, label_format(current_date))
+                GraphValue(month_width, month_value, label_format(current_date))
             )
             month_width, month_value = 0, 0
 
@@ -196,7 +216,7 @@ def daily_data_to_month_graph_data(
         current_date = dd.date
     
     result_data.append(
-                Graph_value(month_width, month_value, label_format(current_date))
+                GraphValue(month_width, month_value, label_format(current_date))
             )
 
     return result_data
@@ -232,7 +252,7 @@ def month_labels_to_year_labels(
             label = ""
 
 
-        result_data.append(Graph_value(w, h, label))
+        result_data.append(GraphValue(w, h, label))
 
     return result_data
 
@@ -271,7 +291,7 @@ def mark_outliers(day_data: Graph_data, month_count: int):
 
     return list(
         map(
-            lambda graph_value: Graph_value(
+            lambda graph_value: GraphValue(
                 graph_value.x_step,
                 graph_value.value,
                 graph_value.label,
@@ -293,7 +313,7 @@ def prettify_month_labels(data: Graph_data) -> Graph_data:
         or an empty string"""
     return list(
         map(
-            lambda graph_value: Graph_value(
+            lambda graph_value: GraphValue(
                 graph_value.x_step,
                 graph_value.value,
                 prettify_date_str(graph_value.label),
@@ -315,7 +335,7 @@ def remove_labels(data: Graph_data) -> Graph_data:
     """sets label for every graph_value in `data` to an empty string"""
     return list(
         map(
-            lambda graph_value: Graph_value(
+            lambda graph_value: GraphValue(
                 graph_value.x_step, graph_value.value, "", graph_value.outlier
             ),
             data,

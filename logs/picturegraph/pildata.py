@@ -3,7 +3,7 @@ from logs.picturegraph.helpers import draw_label
 from PIL import Image, ImageDraw
 
 
-class PIL_data:
+class PilData:
     """Data structure to strore rendered graph value"""
 
     __slots__ = ("rectangle", "arrow", "x_label", "y_label", "outlier")

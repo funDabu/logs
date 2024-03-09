@@ -1,4 +1,4 @@
-from logs.picturegraph.pildata import PIL_data
+from logs.picturegraph.pildata import PilData
 from logs.picturegraph.helpers import get_text_size, draw_label
 from PIL import Image, ImageDraw, ImageFont
 from typing import Iterator, Optional
@@ -109,14 +109,14 @@ def make_picture(
 
 def _render_data(
     data: Graph_data, height: int, x0: int, y0: int, spacing: int
-) -> Iterator[PIL_data]:
-    """Transorms graph_values in `data` to `PIL_data`
+) -> Iterator[PilData]:
+    """Transorms graph_values in `data` to `PilData`
     and yields them."""
     maximum = _data_max(data)
     x = x0
 
     for w, h, label, outlier in data:
-        pil_data: PIL_data = PIL_data()
+        pil_data: PilData = PilData()
 
         value = height if outlier else round((h * height / maximum))
         pil_data.rectangle = [(x, y0), (x + w - 1, y0 - value)]

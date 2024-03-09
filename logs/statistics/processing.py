@@ -1,21 +1,20 @@
 import datetime
 import json
 import re
-import sys
 from typing import Callable, Dict, Optional, Set, TextIO, Tuple
+from logs.helpers.simplelogger import SimpleLogger
 
-from logs.parser.log_parser import Log_entry, regex_parser
+from logs.parser.logparser import LogEntry, regex_parser
 from logs.statistics.constants import (
     BOT_URL_REGEX,
     BOT_USER_AGENT_REGEX,
     LOG_DT_FORMAT,
     SESSION_DELIM,
 )
-from logs.statistics.dailystat import Daily_stats
-from logs.statistics.groupstats import Group_stats
-from logs.statistics.helpers import Ez_timer
-from logs.statistics.ipstats import Ip_stats
-from logs.statistics.logstats import Log_stats
+from logs.statistics.dailystat import DailyStats
+from logs.statistics.groupstats import GroupStats
+from logs.statistics.ipstats import IpStats
+from logs.statistics.logstats import LogStats
 
 RE_PATTERN_BOT_USER_AGENT = re.compile(BOT_USER_AGENT_REGEX)
 RE_PATTERN_BOT_URL = re.compile(BOT_URL_REGEX)
@@ -24,9 +23,9 @@ RE_PATTERN_BOT_URL = re.compile(BOT_URL_REGEX)
 def make_stats(
     input: TextIO,
     config_f: Optional[str],
-    err_msg: bool = False,
-    cached_log_stats: Optional[Log_stats] = None,
-) -> Log_stats:
+    logger: Optional[SimpleLogger] = None,
+    cached_log_stats: Optional[LogStats] = None,
+) -> LogStats:
     """Parses and processes log in `input`
     and stores statistical information about the log in `log_stats`.
 
@@ -34,14 +33,13 @@ def make_stats(
     ----------
     input: TextIO
         log files as plaintext
-    log_stats: Log_stats
+    log_stats: LogStats
     config_f: str, optional
         path to a blacklist file containing ip addressed considered as bots
-    err_msg: bool, optional
-        default: `False`; if `True` then the duration of making stats will be
-        printed to std.err
-    cached_log_stats: Log_stats, optional
-        default: new empty `Log_stats` object;
+    logger: SimpleLogger, optional
+        default: `None`; if given then the duration of making stats will be logged
+    cached_log_stats: LogStats, optional
+        default: new empty `LogStats` object;
         log_stats object in which statiscics from `input` will be stored,
         containg laoded stats from chache.
         When parsing, not entries older then cached_log_stats.last_entry_ts will be added.
@@ -59,11 +57,11 @@ def make_stats(
     last entry for the same host.
 
     """
-    log_stats = Log_stats() if cached_log_stats is None  else cached_log_stats
+    log_stats = LogStats() if cached_log_stats is None  else cached_log_stats
     from_time = log_stats.last_entry_ts
 
-    if err_msg:
-        timer = Ez_timer("Data parsing and proccessing")
+    if logger is not None:
+        logger.addTask("Data parsing and proccessing")
     
     bots_set = set()
     if config_f is not None:
@@ -74,32 +72,28 @@ def make_stats(
         for entry in buffer:
             if len(entry) == 9:  # correct format of the log entry
                 _log_stats_add_entry(log_stats, entry, bots_set, from_time)
-            elif err_msg:
-                print(
-                    f"log entry parsing failed (len={len(entry)}):\n",
-                    entry,
-                    file=sys.stderr,
-                )
+            elif logger is not None:
+                logger.logMessage(f"log entry parsing has failed (len={len(entry)}):\n{entry}")
 
-    if err_msg:
-        timer.finish()
+    if logger is not None:
+        logger.finishTask("Data parsing and proccessing")
 
     return log_stats
 
 
 def _determine_bot(
-    entry: Log_entry, *args: Callable[[Log_entry], bool]
+    entry: LogEntry, *args: Callable[[LogEntry], bool]
 ) -> Tuple[bool, str]:
     """Classifies log entry as a bot if User-agent contains an URL
     or if a predicate from *args called on the entry is true
 
     Parameters
     ----------
-    entry : Log_entry
+    entry : LogEntry
         the log entry which will be classified
 
-    *args: Callable[[Log_entry], bool])
-        predicates on Log_entry which will
+    *args: Callable[[LogEntry], bool])
+        predicates on LogEntry which will
 
     Returns
     -------
@@ -120,7 +114,7 @@ def _determine_bot(
 
 
 def determine_bot(
-    entry: Log_entry, bots_set: Optional[Set[str]] = set()
+    entry: LogEntry, bots_set: Optional[Set[str]] = set()
 ) -> Tuple[bool, str]:
     return _determine_bot(
         entry,
@@ -130,28 +124,27 @@ def determine_bot(
 
 
 def resolve_and_group_ips(
-    log_stats: Log_stats, ip_map: Dict[str, str] = {}, err_msg: bool = False
+    log_stats: LogStats, ip_map: Dict[str, str] = {}, logger: Optional[SimpleLogger] = None,
 ) -> None:
     """Resolves ip address for all data in `log_stats.year_data`
     and merges same ips together.
 
     Note
     ----
-    Somtimes Ip_stats.ip_addr is a host name, not IP address.
+    Somtimes IpStats.ip_addr is a host name, not IP address.
     This function basicly solves the problem for all
     stored data in `log_stats`
 
     Parameters
     ----------
-    logs_stats: Log_stats
+    logs_stats: LogStats
     ip_map: Dict[str, str], optional
         maps invalid adress to resolved address
-    err_msg: bool, optional
-        default: `False`; if `True` then the duration of this function will be
-        printed to std.err
+    logger: SimpleLogger, optional
+        default: `None`; if given then the duration of this function will be logged
     """
-    if err_msg:
-        timer = Ez_timer("IPs resolving and merging")
+    if logger is not None:
+        logger.addTask("IPs resolving and merging")
 
     for bots, people in log_stats.year_stats.values():
         _resolve_and_group_ips_in_group_stats(bots, ip_map)
@@ -167,31 +160,31 @@ def resolve_and_group_ips(
         for ip in ips:
             resolved = ip_map.get(ip)
             grouped_ips.add(ip if resolved is None else resolved)
-        log_stats.daily_data[date] = Daily_stats(
+        log_stats.daily_data[date] = DailyStats(
             date, grouped_ips, data.requests, data.sessions
         )
 
-    if err_msg:
-        timer.finish()
+    if logger is not None:
+        logger.finishTask("IPs resolving and merging")
 
 
 def _resolve_and_group_ips_in_group_stats(
-    g_stats: Group_stats, ip_map: Optional[Dict[str, str]] = None
+    g_stats: GroupStats, ip_map: Optional[Dict[str, str]] = None
 ) -> None:
     """Resolves ip address in `g_stats`
     and merges data for same ips together.
 
-    When Ip_stats are merged together, then
+    When IpStats are merged together, then
     the most frequent (based on session count) is selcted the
 
     Parameters
     ----------
-    g_stats: Group_stats
-        Group_stats which will be modified
+    g_stats: GroupStats
+        GroupStats which will be modified
     ip_map: Dict[str, str], optional
         maps invalid adress to resolved address
     """
-    grouped_stats: Dict[str, Ip_stats] = {}
+    grouped_stats: Dict[str, IpStats] = {}
     hostname_aggregation_dict: Dict[str, Dict[str, int]] = {}
     # maps valid ips to a dict that maps hostnames of give in to session_count
 
@@ -226,8 +219,8 @@ def _resolve_and_group_ips_in_group_stats(
 
 
 def _log_stats_add_entry(
-    log_stats: Log_stats,
-    entry: Log_entry,
+    log_stats: LogStats,
+    entry: LogEntry,
     bots_set: Optional[Set[str]],
     from_time: datetime.datetime,
 ):
@@ -235,8 +228,8 @@ def _log_stats_add_entry(
 
     Parameters
     ----------
-    log_stats: Log_stats
-    entry: Log_entry
+    log_stats: LogStats
+    entry: LogEntry
     bots_set: Optional[Set[str]]
         set of IPv4 from blacklist - all entries from these
         ips will be classified as bots
@@ -256,7 +249,7 @@ def _log_stats_add_entry(
 
     is_bot, bot_url = determine_bot(entry, bots_set)
     group_stats = log_stats.bots if is_bot else log_stats.people
-    ip_stat = group_stats.stats.get(entry.ip_addr, Ip_stats(entry.ip_addr, is_bot, bot_url))
+    ip_stat = group_stats.stats.get(entry.ip_addr, IpStats(entry.ip_addr, is_bot, bot_url))
 
     new_sess = _ip_stats_add_entry(ip_stat, entry)
     # 1 if new session was created, 0 otherwise
@@ -272,15 +265,15 @@ def _log_stats_add_entry(
     # making daily_data for picture overview
     date = ip_stat.datetime.date()
     _, ip_addrs, req_num, sess_num = log_stats.daily_data.get(
-        date, Daily_stats(date, set(), 0, 0)
+        date, DailyStats(date, set(), 0, 0)
     )
     ip_addrs.add(ip_stat.ip_addr)
     if not ip_stat.is_bot and new_sess:
         sess_num += 1
-    log_stats.daily_data[date] = Daily_stats(date, ip_addrs, req_num + 1, sess_num)
+    log_stats.daily_data[date] = DailyStats(date, ip_addrs, req_num + 1, sess_num)
 
 
-def _ip_stats_add_entry(ip_stat: Ip_stats, entry: Log_entry) -> int:
+def _ip_stats_add_entry(ip_stat: IpStats, entry: LogEntry) -> int:
     """ "Adds `entry` to the `ip_stats`.
     If  new session is recognized returns `1`, else `0`.
     `entry` is considered in new session if the duration from
@@ -300,38 +293,38 @@ def _ip_stats_add_entry(ip_stat: Ip_stats, entry: Log_entry) -> int:
     return rv
 
 
-def save_log_stats(log_stat: Log_stats, f_name: str, err_msg: bool = False):
+def save_log_stats(log_stat: LogStats, f_name: str, logger: Optional[SimpleLogger] = None):
     """Transforms `log_stat` into json and saves it to a file with path `f_name`.
-    If `err_msg` is `True`, then prints duration if saving to std.err
+    If `logger` is given then the duration of this function will be logged
     """
-    if err_msg:
-        time1 = Ez_timer("Saving log stats")
+    if logger is not None:
+        logger.addTask("Saving log stats")
 
     with open(f_name, "w") as f:
         json.dump(log_stat.json(), f)
 
-    if err_msg:
-        time1.finish()
+    if logger is not None:
+        logger.finishTask("Saving log stats")
 
 
-def load_log_stats(f_name: str, err_msg: bool = False) -> Log_stats:
+def load_log_stats(f_name: str, logger: Optional[SimpleLogger] = None) -> LogStats:
     """Load statistical informations from json file with path `f_name`
     to new Log_stat.
-    If `err_msg` is `True`, then prints duration if loading to std.err
+    If `logger` is given then the duration of this function will be logged
 
     Returns
     -------
-    Log_stats
+    LogStats
         containing loaded json
     """
-    if err_msg:
-        time1 = Ez_timer("Loading stats")
+    if logger is not None:
+        logger.addTask("Loading stats")
 
-    log_stats = Log_stats()
+    log_stats = LogStats()
     with open(f_name, "r") as f:
         log_stats.from_json(json.load(f))
 
-    if err_msg:
-        time1.finish()
+    if logger is not None:
+        logger.finishTask("Saving log stats")
 
     return log_stats

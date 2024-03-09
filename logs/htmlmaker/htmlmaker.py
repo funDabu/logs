@@ -7,7 +7,7 @@ DEF_CSS = f"{FILE_DIR }/style.css"
 DEF_JS = f"{FILE_DIR }/js.js"
 
 
-class Html_maker:
+class HtmlMaker:
     """Allow making simple html files. Supports:
         - appending new html content from string
         - creating selection buttons, which hide/show some content"""
