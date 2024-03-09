@@ -153,9 +153,7 @@ def resolve_and_group_ips(
     if err_msg:
         timer = Ez_timer("IPs resolving and merging")
 
-    for vals in log_stats.year_stats.values():
-        bots, people = vals[0], vals[1]
-
+    for bots, people in log_stats.year_stats.values():
         _resolve_and_group_ips_in_group_stats(bots, ip_map)
         _resolve_and_group_ips_in_group_stats(people, ip_map)
         # log_stats.year_stats[year] = (bots, people)
@@ -198,7 +196,8 @@ def _resolve_and_group_ips_in_group_stats(
     # maps valid ips to a dict that maps hostnames of give in to session_count
 
     for stat in g_stats.stats.values():
-        stat.ensure_valid_ip_address(ip_map)
+        if stat.valid_ip is None:
+            stat.ensure_valid_ip_address(ip_map)
         ip = stat.ip_addr
 
         grouped = grouped_stats.get(ip)

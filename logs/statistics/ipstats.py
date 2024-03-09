@@ -11,7 +11,7 @@ from logs.statistics.helpers import IJSONSerialize, old_date
 UNRESLOVED = "Unresolved"
 DT_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 FORMAT_STR = (
-    "ip_addr host_name geolocation bot_url is_bot requests_num sessions_num datetime"
+    "ip_addr host_name geolocation bot_url is_bot requests_num sessions_num datetime valid_ip"
 )
 LOG_DELIM = '\t'
 RE_PATTERN_SIMPLE_IPV4 = re.compile(SIMPLE_IPV4_REGEX)
@@ -33,6 +33,10 @@ class Ip_stats(IJSONSerialize):
     sessions_num: int
     datetime: datetime
         default: 01/Jan/1980:00:00:00 +0000
+    valid_ip: Optional[bool]
+        `None` if not yet validated, `True` if `ip_addr` is valid IPv4, 
+        `False` if valid IP could not be resovled.
+
     """
 
     __slots__ = (
@@ -44,6 +48,7 @@ class Ip_stats(IJSONSerialize):
         "requests_num",
         "sessions_num",
         "datetime",
+        "valid_ip",
     )
 
     def __init__(
@@ -65,6 +70,7 @@ class Ip_stats(IJSONSerialize):
         self.is_bot = is_bot
         self.bot_url = bot_url
         self.datetime = old_date()
+        self.valid_ip = None
 
     def update_host_name(self) -> None:
         """Resolves `self.ip_addr` to host name and sets `self.host_name`
@@ -86,7 +92,7 @@ class Ip_stats(IJSONSerialize):
         return hostname
 
     def ensure_valid_ip_address(self, ip_map: Optional[Dict[str, str]] = None) -> bool:
-        """Does a simple incomplete validation of `self.ip_addr`.
+        """Does a simple validation of `self.ip_addr` and sets `self.valid_ip` accordingly.
         If `self.ip_addr` in not an IP address,
         than it might be a domain name,
         so a DNS lookup will be made to find corresponding IP address
@@ -111,6 +117,7 @@ class Ip_stats(IJSONSerialize):
               and the address could not be resolved
         """
         if simple_ipv4_check(self.ip_addr):
+            self.valid_ip = True
             return True
 
         if ip_map is not None:
@@ -119,6 +126,7 @@ class Ip_stats(IJSONSerialize):
             if ip is not None:
                 self.host_name = self.ip_addr
                 self.ip_addr = ip
+                self.valid_ip = True
                 return True
 
         valid, ip = host_to_ip(self.ip_addr)
@@ -129,6 +137,9 @@ class Ip_stats(IJSONSerialize):
         if valid:
             self.host_name = self.ip_addr
             self.ip_addr = ip
+            self.valid_ip = True
+        else:
+            self.valid_ip = False
 
         return valid
 
@@ -164,7 +175,7 @@ class Ip_stats(IJSONSerialize):
             return self.datetime.__format__(DT_FORMAT)
         return getattr(self, name, None)
 
-    def _set_attr(self, name, data):
+    def _set_attr(self, name: str, data):
         if name == "datetime":
             self.datetime = datetime.datetime.strptime(data, DT_FORMAT)
         else:
@@ -209,8 +220,15 @@ class Ip_stats(IJSONSerialize):
         for name, value in zip(format_str.split(), log_entry.split(delim)):
             if name == "requests_num" or name == "sessions_num":
                 value = int(value)
-            if name == "is_bot":
+            elif name == "is_bot":
                 value = value == "True"
+            elif name == "valid_ip":
+                if value == "True":
+                    value = True
+                elif value == "False":
+                    value = False
+                else:
+                    value = None
 
             self._set_attr(name, value)
         
@@ -233,7 +251,6 @@ def simple_ipv4_check(ip: str) -> bool:
         - `False` otherwise
     """
     return RE_PATTERN_SIMPLE_IPV4.fullmatch(ip) is not None
-    # return RE_PATTERN_SIMPLE_IPV4.search(ip) is not None
 
 
 def host_to_ip(host: str) -> Tuple[bool, str]:

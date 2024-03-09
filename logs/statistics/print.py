@@ -198,7 +198,7 @@ def print_overview(
     fi_mu_session_num = 0
 
     for stat in req_sorted_stats:
-        if RE_PATTERN_FI_MU_IPv4.search(stat.ip_addr) is not None:
+        if RE_PATTERN_FI_MU_IPv4.fullmatch(stat.ip_addr) is not None:
             fi_mu_session_num += stat.sessions_num
 
     html.append(
