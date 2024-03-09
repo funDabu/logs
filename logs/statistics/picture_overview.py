@@ -130,13 +130,17 @@ def daily_data_to_day_graph_data(
     )
 
 
+def date_format(date: datetime.date) -> str:
+    return f"{MONTHS[date.month]} {date.year}"
+
+
 def daily_data_to_month_graph_data(
     sorted_daily_data: List[Simple_daily_stats],
     metric: str,
     base_step: int,
     label_format: Callable[
         [datetime.date], str
-    ] = lambda date: f"{MONTHS[date.month]} {date.year}",
+    ] = date_format ,
 ) -> Graph_data:
     """Transforms `sorted_daily_data` to `Graph_data`,
     groups consequent data on months,
@@ -198,9 +202,13 @@ def daily_data_to_month_graph_data(
     return result_data
 
 
+def label_to_year(label: str) -> str:
+    return label.split()[1]
+
+
 def month_labels_to_year_labels(
     month_data: Graph_data,
-    year_from_label: Callable[[str], str] = lambda x: x.split(" ")[1],
+    year_from_label: Callable[[str], str] = label_to_year,
 ) -> Graph_data:
     """Changes labels of the graph_values in `month_data`
     which are the first values for their year to the year.
@@ -215,12 +223,14 @@ def month_labels_to_year_labels(
     current_year = year_from_label(month_data[0].label)
 
     for w, h, label, _ in month_data[1:]:
-        label = ""
 
         year = year_from_label(label)
         if year != current_year:
             current_year = year
             label = current_year
+        else:
+            label = ""
+
 
         result_data.append(Graph_value(w, h, label))
 

@@ -897,7 +897,7 @@ def print_histograms_for_stats(
         uniq_classes=uniq_classes,
     )
 
-    bins = get_splited_data(session_data, dellims=[2, 5, 10, 50, 100, 1000])
+    bins = get_splited_data(session_data, delims=[2, 5, 10, 50, 100, 1000])
     print_splitted_vals_table(
         bins,
         html=html,
