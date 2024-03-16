@@ -177,5 +177,6 @@ class GroupStats(IJsonSerialize):
         delim = LOG_DELIM if delim is None else delim
         format_str = DISTRIB_ORDER if format_str is None else format_str
 
-        for name, log_entry in zip(format_str, log.split("\n")):
+        for name, log_entry in zip(format_str.split(), log.split("\n")):
             self._set_attr(name, [int(val) for val in log_entry.split(delim)])
+        

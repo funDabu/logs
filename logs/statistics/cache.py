@@ -75,7 +75,6 @@ def dailydata_to_logcache(
 
 
 def log_stats_from_cache(
-    log_stats: LogStats,
     base_path: str = ".",
     bot_stats_file: str = "bot_stats_file",
     human_stats_file: str = "human_stats_file",
@@ -107,7 +106,6 @@ def log_stats_from_cache(
         return
 
     log_stats = LogStats()
-
     for file in os.listdir(cache_path):
         if file == last_ts_file:
             with open(os.path.join(cache_path, last_ts_file), "r") as f:

@@ -36,7 +36,7 @@ def main():
     elif options.cache is not None:
         logger.addTask("loading cache")
 
-        log_stats = log_stats_from_cache(log_stats, base_path=options.cache)
+        log_stats = log_stats_from_cache(base_path=options.cache)
         cached_dailydata = simple_dailydata_from_logcache(base_path=options.cache)
 
         logger.finishTask("loading cache")
