@@ -117,7 +117,7 @@ def main():
     # generate histogram
     if options.hist:
         logger.addTask("creating histograms")
-        make_histogram(log_stats, "_hist.html", log_name=options.name)
+        make_histogram(log_stats, "hist.html", log_name=options.name)
         logger.finishTask("creating histograms")
     
     # test geolocation
@@ -158,7 +158,7 @@ def generate_index_html(options, years: List[int]):
 
         if options.hist:
             file.write("<h2>Histogram</h2>\n")
-            file.write("<ul><li><a href='_hist.html'> Histogram </a></li></ul>\n")
+            file.write("<ul><li><a href='hist.html'> Histogram </a></li></ul>\n")
 
         file.write("<h2>Statistics per year</h2>\n")
         file.write("<ul>\n")
