@@ -663,17 +663,16 @@ def print_countries_stats(
         - horizontal bar graph of the geolocations sahres in the sample
     """
     # TODO move making sample and estimating geolocations elsewhere??
-
-    if sample_size <= 0:
-        return
-
+    
     sample: List[IpStats] = list(
         filter(
             lambda ip_stat: ip_stat.sessions_num <= 50, log_stats.people.stats.values()
         )
     )
-
     sample_size = min(len(sample), sample_size)
+
+    if sample_size <= 0:
+        return
     if len(sample) > sample_size:
         sample = random.sample(sample, sample_size)
     else:
