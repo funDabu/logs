@@ -14,7 +14,7 @@ Then we will proceed as follows
 
 ```sh
 cd /some/dir/for/output
-cat /var/logs/apache2/2023-MM-example | /path/to/venv/bin/python3 /path/to/logs.py -e -c . -d /path/to/geolocation/db 
+cat /var/logs/apache2/2023-MM-example | /path/to/venv/bin/python3 /path/to/logs.py -e -n example_log -c . -d /path/to/geolocation/db 
 ```
 
 Now we will explain the used script options.
@@ -63,7 +63,7 @@ both cache and the new data. We will achive this by:
 
 ```sh
 cd /some/dir/for/output
-cat /var/logs/apache2/2024-01-example | /path/to/venv/bin/python3 /path/to/logs.py -e -c . -d /path/to/geolocation/db 
+cat /var/logs/apache2/2024-01-example | /path/to/venv/bin/python3 /path/to/logs.py -e -n example_log -c . -d /path/to/geolocation/db 
 ```
 
 The error output may look like follows:
@@ -98,6 +98,6 @@ Now new `2024.html` file has appeard in the current folder.
 Note that `2023.html` file was also recreated. If you want to supress this behavior, 
 create only `2024.html` and update `logs_index.html` and related overview pictures
 use `-y` or `--year` option:
-```
-cat /var/logs/apache2/2024-01-example | /path/to/venv/bin/python3 /path/to/logs.py -e -c . -d /path/to/geolocation/db -y 2024
+```sh
+cat /var/logs/apache2/2024-01-example | /path/to/venv/bin/python3 /path/to/logs.py -e -n example_log -c . -d /path/to/geolocation/db -y 2024
 ```

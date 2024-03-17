@@ -18,6 +18,7 @@ from logs.statistics.processing import (
     make_stats,
     resolve_and_group_ips,
     save_log_stats,
+    group_bots_on_url,
 )
 
 
@@ -67,6 +68,9 @@ def main():
             log_stats.daily_data, cached_dailydata, base_path=options.cache
         )
         logger.finishTask("saving cache")
+    
+    if options.group_url:
+        group_bots_on_url(log_stats=log_stats, logger=logger)
 
     # determine years
     years =  log_stats.year_stats.keys()
@@ -314,6 +318,14 @@ def parse_options():
         default=None,
         help="Specify a json file, which proccessed statiscics will be loaded from. "
         "When used together with -c, --cache flag, no cache will be loaded",
+    )
+    parser.add_option(
+        "-U",
+        "--group_url",
+        action="store_false",
+        dest="group_url",
+        default=True,
+        help="Disable grouping bots on url",
     )
     parser.add_option(
         # TODO: meabe remove

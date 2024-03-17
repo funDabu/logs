@@ -120,12 +120,23 @@ whether those field which should contain an IP address contains
 something that looks like one.
 If not, the content of this field is considered as a hostname and 
 resolution of the corresponding IP address is made.
+During this porocess hostname with multiple IP adresess can emerge.
+If that happens, the IP which is most frequent (based no sessions) in the log
+for given hostname is selected.
 
 Note that this is a time expensive process and no parallelization is used.
 In other words, it is not realistic to expect results from this program
 if the log contains hunderts or even thousands different hostnames instead of IPs.
 
-### 4. Output files creation
+### 4. Grouping bots data on url
+
+Amongs data classified as bots, there can be multiple data with differen IP address but with same bot URL,
+which is a URL than can somtimes be found in the *user agent* log entry field.
+These are considered as same "type" of bot and are group together, so there so
+there is only one entry with given URL in processed data.
+During the aggregation, the IP address for the resulting data entry is selected the one with most request count in the logs.
+
+### 5. Output files creation
 
 In this stage, both output pictures and html files are created.
 This process includes IP to hostname resolutions for table entries in html files,
@@ -287,12 +298,11 @@ Options:
                         Specify a json file, which proccessed statiscics will
                         be loaded from. When used together with -c, --cache
                         flag, no cache will be loaded
+  -U, --group_url       Disable grouping bots on url
   -t TEST, --test=TEST  Test geolocation, specify number of repetitions.
 
 
 ### Fully process any log
-
-**TODO**
 
 ```sh
 cd location/where/output/will/be/created

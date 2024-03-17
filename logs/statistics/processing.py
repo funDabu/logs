@@ -19,6 +19,8 @@ from logs.statistics.logstats import LogStats
 RE_PATTERN_BOT_USER_AGENT = re.compile(BOT_USER_AGENT_REGEX)
 RE_PATTERN_BOT_URL = re.compile(BOT_URL_REGEX)
 
+NO_URL = ""
+
 
 def make_stats(
     input: TextIO,
@@ -99,8 +101,8 @@ def _determine_bot(
     -------
     Tuple[bool, str]
         - (True, <url>) if the entry is classified as bot based on url in user_agent
-        - (True, "") if the bot classified based on predicate in *args
-        - (False, "")  otherwise
+        - (True, NO_URL) if the bot classified based on predicate in *args
+        - (False, NO_URL)  otherwise
     """
     match = RE_PATTERN_BOT_URL.search(entry.user_agent)
     if match is not None:
@@ -108,14 +110,34 @@ def _determine_bot(
 
     for func in args:
         if func(entry):
-            return (True, "")
+            return (True, NO_URL)
 
-    return (False, "")
+    return (False, NO_URL)
 
 
 def determine_bot(
     entry: LogEntry, bots_set: Optional[Set[str]] = set()
 ) -> Tuple[bool, str]:
+    """Classifies log entry as a bot if User-agent contains an URL
+    or if User agent matches with `BOT_USER_AGENT_REGEX` or `entry.ip_addr`
+    is in the `bots_set`
+
+    Parameters
+    ----------
+    entry : LogEntry
+        the log entry which will be classified
+
+    bots_set: Set[str], optional
+        default: empty set; set of IPs wich will be
+        automaticaly classified as bots.
+
+    Returns
+    -------
+    Tuple[bool, str]
+        - (True, <url>) if the entry is classified as bot based on url in user_agent
+        - (True, NO_URL) if the bot classified based on `bot_set` or `BOT_USER_AGENT_REGEX`
+        - (False, NO_URL)  otherwise
+    """
     return _determine_bot(
         entry,
         lambda x: x.ip_addr in bots_set,
@@ -191,31 +213,75 @@ def _resolve_and_group_ips_in_group_stats(
     for stat in g_stats.stats.values():
         if stat.valid_ip is None:
             stat.ensure_valid_ip_address(ip_map)
+
         ip = stat.ip_addr
-
         grouped = grouped_stats.get(ip)
-        stat.requests_num += 0 if grouped is None else grouped.requests_num
-        stat.sessions_num += 0 if grouped is None else grouped.sessions_num
-        grouped_stats[ip] = stat
 
-        # aggregate hostname
         if grouped is not None:
+            stat.requests_num += grouped.requests_num
+            stat.sessions_num += grouped.sessions_num
+
+            # aggregate hostname
             hostnames = hostname_aggregation_dict.get(
                 ip, {grouped.host_name: grouped.sessions_num}
             )
             hostnames[stat.host_name] = stat.sessions_num + hostnames.get(
                 stat.host_name, 0
             )
+            hostname_aggregation_dict[ip] = hostnames
+
+        grouped_stats[ip] = stat
 
     # set as a hostname the most common
     for ip, hostnames in hostname_aggregation_dict.items():
         if len(hostnames) > 1:
             most_common_name, _ = sorted(
-                hostnames.items(), key=lambda name_val_pair: name_val_pair[1]
-            )[-1]
+                hostnames.items(), key=lambda name_val_pair: name_val_pair[1])[-1]
             grouped_stats[ip].host_name = most_common_name
 
     g_stats.stats = grouped_stats
+
+
+def group_bots_on_url(log_stats: LogStats, logger: Optional[SimpleLogger] = None) -> None:
+    if logger is not None:
+        logger.addTask("Grouping bots on User agent")
+
+    for bots, _ in log_stats.year_stats.values():
+        grouped_stats: Dict[str, IpStats] = {}
+        ip_aggregation_dict: Dict[str, Dict[str, int]] = {}
+        # maps urls to a dict that maps ips to requests_count
+
+        for stat in bots.stats.values():
+            if stat.bot_url == NO_URL:
+                grouped_stats[stat.ip_addr] = stat
+                continue
+
+            grouped = grouped_stats.get(stat.bot_url)
+            stat.requests_num += 0 if grouped is None else grouped.requests_num
+            stat.sessions_num += 0 if grouped is None else grouped.sessions_num
+            grouped_stats[stat.bot_url] = stat
+
+            # aggregate ip
+            if stat.bot_url not in ip_aggregation_dict:
+                ip_aggregation_dict[stat.bot_url] = {}
+
+            ips = ip_aggregation_dict.get(stat.bot_url)
+            ips[stat.ip_addr] = stat.requests_num + ips.get(stat.ip_addr, 0)
+
+        # set as a IP the most common
+        for url, ips in ip_aggregation_dict.items():
+            if len(ips) > 1:
+                most_common_ip, _ = sorted(
+                    ips.items(), key=lambda ip_request_pair: ip_request_pair[1])[-1]
+                grouped_stats[url].ip = most_common_ip
+
+        bots.stats = grouped_stats
+            
+    if logger is not None:
+        logger.finishTask("Grouping bots on User agent")
+
+
+
 
 
 def _log_stats_add_entry(
