@@ -14,7 +14,7 @@ LOG_DT_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
 """
 SIMPLE_IPV4_REGEX = r"(?:[0-9]{1,3}\.){3}[0-9]{1,3}"
 BOT_URL_REGEX = r"(http\S+?)[);]"
-BOT_USER_AGENT_REGEX = r"bot|Bot|crawl|Crawl|GoogleOther"
+BOT_USER_AGENT_REGEX = r"bot|Bot|crawl|Crawl|GoogleOther|scan"
 
 # Based on https://www.fi.muni.cz/tech/unix/external-network.html.cs
 # 147.251.42–53.0/24, 147.251.58.0/24, 172.16.0.0/12
