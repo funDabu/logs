@@ -104,4 +104,4 @@ cat /var/logs/apache2/2024-01-example | /path/to/venv/bin/python3 /path/to/logs.
 
 ## Example output
 
-You can see example output [here](./example_output/logs_index.html)
+You can see example output [here](https://html-preview.github.io/?url=https://github.com/funDabu/logs/blob/public/docs/example_output/logs_index.html)
