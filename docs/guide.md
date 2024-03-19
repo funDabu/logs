@@ -1,10 +1,10 @@
 # Logs
 
 This is a user guide. Here you can read more about the tool,
-namely what is its [output](#output) look like, [how does it works](#how-are-logs-processed), what are the [requirements](#require)
+namely what is its [output](#output) look like, [how does it works](#how-are-logs-processed), what are the [requirements](#requirements)
 and finaly an [exapmle](#example) of using this tool.
 
-## Output {#output}
+## Output
 
 Multiple files are created as an output. These files are always created in current working directory.
 Quick overview of these files follows.
@@ -19,9 +19,9 @@ For each year in logs `YYYY.html` file is created which contains:
       - requests and sessions distribution across months of the year illustrated by a table and graphs
    - section for non-bots with the same subsections, except an extra estimated locations subsection
      which contains a table and a graph depicting the results of geolocation on the sample.
-     The displayed values are weigted by the session count of the located IP address, you can read about the geolocation [here](#geoloc).
+     The displayed values are weigted by the session count of the located IP address, you can read about the geolocation [here](#geolocation).
      Please be aware, that in reality this section includes
-     many bots which escaped the the simplified [bot classification](#bot-class).
+     many bots which escaped the the simplified [bot classification](#bot-classification).
 
 The `hist.html` file which informs about the number of IP adresses with given count of requests or sessions.
 For this output, only entires classified as non-bots are considered.
@@ -85,7 +85,7 @@ or more formaly in Python [datetime format](https://docs.python.org/3/library/da
 All logs from the input are parsed.
 This is done using [Python regex](https://docs.python.org/3/library/re.html) search.
 
-### 2. Log details processing {#processing}
+### 2. Log details processing
 
 Each parsed log entry goes through this porocess
   - **Fields count checking** - if the count of fields if different from nine,
@@ -97,7 +97,7 @@ Each parsed log entry goes through this porocess
   why input log entries should be time ordered.
   The more there are breaks in the time ordering of input log entries,
   the greater count of mis-detection of new sessions will be.
-  - **Bot classification** - see [bot classification](#bot-class).
+  - **Bot classification** - see [bot classification](#bot-classification).
 
 Then, base on the entry details, statistical details of the log are update.
 These statistical details are saved separately for every year in the log
@@ -111,7 +111,7 @@ Following information is stored:
 Additionaly, for entries not classified as bots, the count of requests and sessions in each day,
 and a set of unique IPs in each day, are stored for each day in the log.
 
-### 3. Hostname to IP resolution {#ip_res}
+### 3. Hostname to IP resolution
 
 So far it was expected that all IP fields contains IPv4.
 Hovewer, that is sometimes not the case and this field contains hostname instead.
@@ -143,7 +143,7 @@ This process includes IP to hostname resolutions for table entries in html files
 and a geolocation of these table entries and of a sample providing 
 geolocation information about the log as whole.
 
-### Bot classification {#bot-class}
+### Bot classification
 
 Log etnries are calsified as bots based on the *User agent* field content.
 If it contains an URL, or a sepcified substing is found in it,
@@ -158,7 +158,7 @@ If you find frequent bot in your logs identifing itself with a different substri
 you can always edit the source code, namely the `BOT_USER_AGENT_REGEX` variable
 in `logs/statistics/constants.py`.
 
-### Geolocation {#geoloc}
+### Geolocation
 
 For geolocation [geoplugin](https://www.geoplugin.com/) API is used. Beacuse the access to the API
 is limited, only 3 request to the API per 2 second are made at the maximum rate.
@@ -178,10 +178,10 @@ If you want to see how many IPs follows this criterion, look into the tables in 
 
 ### Cache
 
-The cache is loaded before [log details processing](#processing) and is saved after [IP address resolution](ip_res).
+The cache is loaded before [log details processing](#how-are-logs-processed) and is saved after [IP address resolution](ip_res).
 The case is stored in the direcotry specified by the `-c` or `--cache` option.
 If you use this options, only those entries older than the `timestamp` in the cache (see below)
-undergo the [log details processing](#processing) and are added to loaded data from cache.
+undergo the [log details processing](#how-are-logs-processed) and are added to loaded data from cache.
 If you want to process data younger than the `timestamp`, you have to 
 remove all cached data starting from the year of the data you want to process,
 manually set the timestamp accordingly, and then re-process all the logs
@@ -220,7 +220,7 @@ which will store all the cache files:
 
 ### Processing speed
 
-## Requirements {#require}
+## Requirements
 
 ### PIP
 
