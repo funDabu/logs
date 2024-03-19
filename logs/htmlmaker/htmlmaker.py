@@ -1,3 +1,6 @@
+# This file is part of a project which is released under The MIT License (MIT).
+# See file LICENCE.md or go to https://mit-license.org/ for full license details.
+
 import os
 from typing import Callable, Iterable, Iterator, List, Optional, Union
 

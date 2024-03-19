@@ -53,11 +53,11 @@ Now when we display the content of current directory, we should be able to see
 `logs_index.html`, `2023.html`, `hist.html` files, some *.png* files and 
 `logchache` directory.
 
-## Process logs from January 2024
+## Process logs from the beginnigng of 2024
 
-Now we would like to add to the output also logs from January 2024.
+Now we would like to add to the output also logs from frist months of 2024.
 Processing the logs for year 2023 took more than 3 hours, so we would like
-to only process the January data. Beacuse we have created the cache for year 2023
+to only process the data from 2024. Beacuse we have created the cache for year 2023
 we can do that, we can process just the new data and then created output files from 
 both cache and the new data. We will achive this by:
 
@@ -101,3 +101,7 @@ use `-y` or `--year` option:
 ```sh
 cat /var/logs/apache2/2024-01-example | /path/to/venv/bin/python3 /path/to/logs.py -e -n example_log -c . -d /path/to/geolocation/db -y 2024
 ```
+
+## Example output
+
+You can see example output [here](./example_output/logs_index.html)

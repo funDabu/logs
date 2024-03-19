@@ -7,8 +7,8 @@ and finaly an [exapmle](#example) of using this tool.
 ## Output {#output}
 
 Multiple files are created as an output. These files are always created in current working directory.
-Quick overview of these files follows,
-but you can learn more about the output in commented example.
+Quick overview of these files follows.
+or you can see an example output [here](./example_output/logs_index.html).
 
 For each year in logs `YYYY.html` file is created which contains:
    - ovreview pictures illustrating hte count of requests, sessions or unique IP addresses for each day in the year

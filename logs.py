@@ -100,7 +100,7 @@ def main():
 
     # Generate index html
     if options.index:
-        index_years = year if options.just_years else log_stats.year_stats.keys()
+        index_years = years if options.just_years else log_stats.year_stats.keys()
         generate_index_html(options=options, years=index_years)
             
     logger.finishTask("creating output html files")
