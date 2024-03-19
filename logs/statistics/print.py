@@ -1,5 +1,4 @@
 import io
-import os
 import random
 import re
 from typing import List, Optional, TextIO, Tuple
@@ -849,12 +848,7 @@ def make_histogram(log_stats: LogStats, file_name: str, selected: str = "", log_
     Currently for entries classified as people only.
     Working, but still in development"""
 
-    with open(
-        f"{os.path.dirname(__file__)}/hist.js", "r"
-    ) as f:  # TODO: think of better way to get hist.js
-        js = f.read()
-    template = "<html><head><style>{css}</style> <script>{js}</script></head>\n<body>\n{content}\n</body>\n</html>"
-    html: HtmlMaker = HtmlMaker(template, js=js)
+    html: HtmlMaker = HtmlMaker()
 
     title = f"{log_name.capitalize()} - Histograms" if log_name is not None else "Histograms"
     html.append(f"<h1>{title}</h1>")
