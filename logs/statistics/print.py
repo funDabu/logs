@@ -1,18 +1,14 @@
 import io
 import random
-import re
 from typing import List, Optional, TextIO, Tuple
 
 import matplotlib.pyplot as plt
 
 from logs.htmlmaker.htmlmaker import HtmlMaker, make_table
-from logs.statistics.constants import DAYS, MONTHS, FI_MU_IPv4_REGEX
+from logs.statistics.constants import DAYS, MONTHS
 from logs.statistics.geolocdb import GeolocDB
 from logs.helpers.simplelogger import SimpleLogger
 from logs.statistics.processing import IpStats, LogStats
-
-RE_PATTERN_FI_MU_IPv4 = re.compile(FI_MU_IPv4_REGEX)
-
 
 def print_stats(
     log_stats: LogStats,
@@ -197,27 +193,17 @@ def print_overview(
     The overview will contain onw row and following columns:
         - `header_str`: number of IpStats
         - Total session count: sum of all the session counts in `req_sorted_stats`
-        - FI MU sessions: sum of all the session counts in `req_sorted_stats` for
-          IP addresses from FI MU
-        - External sessions: Total session count - FI MU sessions
     """
     total_session_num = sum(map(lambda ip_stat: ip_stat.sessions_num, req_sorted_stats))
-    fi_mu_session_num = 0
-
-    for stat in req_sorted_stats:
-        if RE_PATTERN_FI_MU_IPv4.fullmatch(stat.ip_addr) is not None:
-            fi_mu_session_num += stat.sessions_num
 
     html.append(
         make_table(
             "Overview",
-            [header_str, "Total sessions count", "FI MU sessions", "External sessions"],
+            [header_str, "Total sessions count"],
             [
                 [
                     str(len(req_sorted_stats)),
                     str(total_session_num),
-                    str(fi_mu_session_num),
-                    str(total_session_num - fi_mu_session_num),
                 ]
             ],
         )
