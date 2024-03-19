@@ -245,8 +245,9 @@ which will store all the cache files:
 
 
 ### How to use
-Usage: logs.py [options]
+Usage: cat /path/to/logs | logs.py -n log_name [options]
 
+```
 Options:
   -h, --help            show this help message and exit
   -i INPUT, --input=INPUT
@@ -300,7 +301,7 @@ Options:
                         flag, no cache will be loaded
   -U, --group_url       Disable grouping bots on url
   -t TEST, --test=TEST  Test geolocation, specify number of repetitions.
-
+```
 
 ### Fully process any log
 
